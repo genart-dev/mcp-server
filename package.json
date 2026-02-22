@@ -1,0 +1,82 @@
+{
+  "name": "@genart-dev/mcp-server",
+  "version": "0.1.0",
+  "description": "MCP server for genart.dev — tools, resources, and prompts for generative art",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "genart-mcp": "./dist/index.js"
+  },
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    },
+    "./lib": {
+      "import": {
+        "types": "./dist/lib.d.ts",
+        "default": "./dist/lib.js"
+      },
+      "require": {
+        "types": "./dist/lib.d.cts",
+        "default": "./dist/lib.cjs"
+      }
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/genart-dev/mcp-server.git"
+  },
+  "homepage": "https://genart.dev",
+  "keywords": [
+    "genart",
+    "generative-art",
+    "mcp",
+    "model-context-protocol",
+    "ai-tools"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsup",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "clean": "rm -rf dist",
+    "prepublishOnly": "pnpm build"
+  },
+  "dependencies": {
+    "@genart-dev/core": "^0.1.0",
+    "@modelcontextprotocol/sdk": "^1.12.0",
+    "archiver": "^7.0.1",
+    "zod": "^3.24.0"
+  },
+  "peerDependencies": {
+    "puppeteer": ">=22.0.0"
+  },
+  "peerDependenciesMeta": {
+    "puppeteer": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@types/archiver": "^7.0.0",
+    "@types/node": "^25.2.3",
+    "puppeteer": "24.37.3",
+    "tsup": "^8.3.6",
+    "typescript": "^5.7.3",
+    "vitest": "^3.2.1"
+  }
+}
