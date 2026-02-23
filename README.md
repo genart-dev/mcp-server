@@ -255,6 +255,10 @@ Stored in sketch metadata to track which AI agent created or modified each sketc
 | [`@genart-dev/format`](https://github.com/genart-dev/format) | File format types, parsers, presets |
 | [`@genart-dev/core`](https://github.com/genart-dev/core) | Renderer adapters, skill registry (dependency) |
 
+## Support
+
+Questions, bugs, or feedback — [support@genart.dev](mailto:support@genart.dev) or [open an issue](https://github.com/genart-dev/mcp-server/issues).
+
 ## License
 
 MIT

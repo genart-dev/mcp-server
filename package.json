@@ -35,6 +35,11 @@
     "dist"
   ],
   "license": "MIT",
+  "author": {
+    "name": "genart.dev",
+    "email": "support@genart.dev",
+    "url": "https://genart.dev"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/genart-dev/mcp-server.git"
