@@ -43,6 +43,11 @@ import { listSketches, searchSketches } from "./tools/gallery.js";
 import { mergeSketches } from "./tools/merge.js";
 import { snapshotLayout } from "./tools/snapshot-layout.js";
 import { listSkills, loadSkill, getGuidelines } from "./tools/knowledge.js";
+import {
+  listComponents,
+  addComponent,
+  removeComponent,
+} from "./tools/components.js";
 import { captureScreenshot, captureBatch } from "./tools/capture.js";
 import { exportSketch } from "./tools/export.js";
 import { registerResources } from "./resources/index.js";
@@ -81,6 +86,7 @@ export function createServer(state: EditorState): McpServer {
 
   registerWorkspaceTools(server, state);
   registerSketchTools(server, state);
+  registerComponentTools(server, state);
   registerSelectionTools(server, state);
   registerParameterTools(server, state);
   registerArrangementTools(server, state);
@@ -219,7 +225,7 @@ function registerWorkspaceTools(server: McpServer, state: EditorState): void {
 function registerSketchTools(server: McpServer, state: EditorState): void {
   server.tool(
     "create_sketch",
-    "Create a new .genart sketch file from metadata, parameters, and algorithm",
+    "Create a new .genart sketch file from metadata, parameters, and algorithm. IMPORTANT: Do not embed common utilities (PRNG, noise, easing, color math, vector ops) inline in the algorithm. Instead, declare them as components: { \"prng\": \"^1.0.0\", \"noise-2d\": \"^1.0.0\" }. Then use the exported functions directly in your algorithm (e.g., mulberry32, fbm2D). Use list_components to see all available components for the current renderer.",
     {
       id: z.string().describe("URL-safe kebab-case identifier"),
       title: z.string().describe("Human-readable title"),
@@ -275,6 +281,19 @@ function registerSketchTools(server: McpServer, state: EditorState): void {
         .describe("Algorithm source code (default: renderer template). For p5: must be `function sketch(p, state) { ... }` in instance mode. State provides: state.WIDTH, state.HEIGHT, state.SEED (number), state.PARAMS (keyed by param key), state.COLORS (keyed by color key, hex strings). Use p5 instance methods (p.createCanvas, p.background, etc)."),
       seed: z.number().optional().describe("Initial random seed (default: random)"),
       skills: z.array(z.string()).optional().describe("Design skill references"),
+      components: z
+        .record(
+          z.union([
+            z.string(),
+            z.object({
+              version: z.string().optional(),
+              code: z.string().optional(),
+              exports: z.array(z.string()).optional(),
+            }),
+          ]),
+        )
+        .optional()
+        .describe("Component dependencies. Use list_components to see available. Keys are component names, values are semver ranges (e.g. \"^1.0.0\") or objects with version/code/exports."),
       addToWorkspace: z
         .string()
         .optional()
@@ -372,7 +391,7 @@ function registerSketchTools(server: McpServer, state: EditorState): void {
 
   server.tool(
     "update_algorithm",
-    "Replace the algorithm source code of a sketch",
+    "Replace the algorithm source code of a sketch. If adding/changing components, pass them in the components field alongside the algorithm.",
     {
       sketchId: z.string().describe("ID of the sketch to update"),
       algorithm: z.string().describe("New algorithm source code. For p5: must be `function sketch(p, state) { ... }` in instance mode. State provides: state.WIDTH, state.HEIGHT, state.SEED, state.PARAMS (keyed by param key), state.COLORS (keyed by color key)."),
@@ -380,6 +399,19 @@ function registerSketchTools(server: McpServer, state: EditorState): void {
         .boolean()
         .optional()
         .describe("Run renderer-specific validation before saving (default: true)"),
+      components: z
+        .record(
+          z.union([
+            z.string(),
+            z.object({
+              version: z.string().optional(),
+              code: z.string().optional(),
+              exports: z.array(z.string()).optional(),
+            }),
+          ]),
+        )
+        .optional()
+        .describe("Component dependencies to resolve alongside the algorithm update. Use list_components to see available."),
       agent: z.string().optional().describe("Your CLI agent name (e.g. 'claude-code', 'codex-cli', 'gemini-cli', 'opencode', 'kiro')"),
       model: z.string().optional().describe("Your AI model identifier (e.g. 'claude-opus-4-6', 'gpt-4o', 'gemini-2.5-pro')"),
     },
@@ -489,6 +521,78 @@ function registerSketchTools(server: McpServer, state: EditorState): void {
     async (args) => {
       try {
         const result = await deleteSketch(state, args);
+        return jsonResult(result);
+      } catch (e) {
+        return toolError(e instanceof Error ? e.message : String(e));
+      }
+    },
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Component Tools
+// ---------------------------------------------------------------------------
+
+function registerComponentTools(server: McpServer, state: EditorState): void {
+  server.tool(
+    "list_components",
+    "List available reusable components from the registry, filtered by renderer and/or category. Components provide common utilities (PRNG, noise, easing, color math, etc.) that can be declared as dependencies instead of inlining code in the algorithm.",
+    {
+      renderer: z
+        .enum(["p5", "three", "glsl", "canvas2d", "svg"])
+        .optional()
+        .describe("Filter by renderer compatibility"),
+      category: z
+        .enum([
+          "randomness", "noise", "math", "easing", "color", "vector",
+          "geometry", "grid", "particle", "physics", "distribution",
+          "pattern", "sdf", "transform", "animation", "string",
+          "data-structure", "imaging",
+        ])
+        .optional()
+        .describe("Filter by component category"),
+    },
+    async (args) => {
+      try {
+        const result = await listComponents(state, args);
+        return jsonResult(result);
+      } catch (e) {
+        return toolError(e instanceof Error ? e.message : String(e));
+      }
+    },
+  );
+
+  server.tool(
+    "add_component",
+    "Add a component dependency to an existing sketch. Resolves the component and any transitive dependencies from the registry, validates renderer compatibility, and writes the resolved form to the sketch file.",
+    {
+      sketchId: z.string().describe("ID of the sketch to add the component to"),
+      component: z.string().describe("Component name (e.g. 'prng', 'noise-2d', 'glsl-noise')"),
+      version: z
+        .string()
+        .optional()
+        .describe("Version range (default: '^1.0.0')"),
+    },
+    async (args) => {
+      try {
+        const result = await addComponent(state, args);
+        return jsonResult(result);
+      } catch (e) {
+        return toolError(e instanceof Error ? e.message : String(e));
+      }
+    },
+  );
+
+  server.tool(
+    "remove_component",
+    "Remove a component dependency from a sketch. Checks for dependent components and warns if the algorithm references the component's exports.",
+    {
+      sketchId: z.string().describe("ID of the sketch to remove the component from"),
+      component: z.string().describe("Component name to remove"),
+    },
+    async (args) => {
+      try {
+        const result = await removeComponent(state, args);
         return jsonResult(result);
       } catch (e) {
         return toolError(e instanceof Error ? e.message : String(e));

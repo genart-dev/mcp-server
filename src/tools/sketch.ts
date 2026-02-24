@@ -9,12 +9,15 @@ import { basename, dirname, resolve } from "path";
 import {
   createDefaultRegistry,
   parseGenart,
+  resolveComponents,
   resolvePreset,
   serializeGenart,
   serializeWorkspace,
   type ColorDef,
   type ParamDef,
   type RendererType,
+  type SketchComponentDef,
+  type SketchComponentValue,
   type SketchDefinition,
   type SketchState,
   type ThemeDef,
@@ -129,6 +132,7 @@ export interface CreateSketchInput {
   algorithm?: string;
   seed?: number;
   skills?: string[];
+  components?: Record<string, string | { version?: string; code?: string; exports?: string[] }>;
   addToWorkspace?: string;
   agent?: string;
   model?: string;
@@ -171,12 +175,48 @@ export async function createSketch(
     algorithm = adapter.getAlgorithmTemplate();
   }
 
+  // Resolve components if provided
+  let resolvedComponents: Record<string, SketchComponentDef> | undefined;
+  if (input.components && Object.keys(input.components).length > 0) {
+    // Build shorthand map for the resolver
+    const shorthand: Record<string, string> = {};
+    for (const [name, value] of Object.entries(input.components)) {
+      if (typeof value === "string") {
+        shorthand[name] = value;
+      } else if (value.version) {
+        shorthand[name] = value.version;
+      } else if (value.code) {
+        // Inline component — skip resolver, include directly
+        if (!resolvedComponents) resolvedComponents = {};
+        resolvedComponents[name] = {
+          ...(value.version ? { version: value.version } : {}),
+          code: value.code,
+          ...(value.exports ? { exports: value.exports } : {}),
+        };
+      }
+    }
+
+    // Resolve registry components
+    if (Object.keys(shorthand).length > 0) {
+      const resolved = resolveComponents(shorthand, rendererType as RendererType);
+      if (!resolvedComponents) resolvedComponents = {};
+      for (const rc of resolved) {
+        resolvedComponents[rc.name] = {
+          version: rc.version,
+          code: rc.code,
+          exports: [...rc.exports],
+        };
+      }
+    }
+  }
+
   const seed =
     input.seed ?? Math.floor(Math.random() * 100000);
   const ts = now();
+  const hasComponents = resolvedComponents && Object.keys(resolvedComponents).length > 0;
 
   const sketch: SketchDefinition = {
-    genart: "1.1",
+    genart: hasComponents ? "1.2" : "1.1",
     id: input.id,
     title: input.title,
     created: ts,
@@ -194,6 +234,7 @@ export async function createSketch(
     ...(input.skills && input.skills.length > 0
       ? { skills: input.skills }
       : {}),
+    ...(hasComponents ? { components: resolvedComponents } : {}),
     ...(input.agent ? { agent: input.agent } : {}),
     ...(input.model ? { model: input.model } : {}),
   };
@@ -443,6 +484,7 @@ export interface UpdateAlgorithmInput {
   sketchId: string;
   algorithm: string;
   validate?: boolean;
+  components?: Record<string, string | { version?: string; code?: string; exports?: string[] }>;
   agent?: string;
   model?: string;
 }
@@ -473,10 +515,49 @@ export async function updateAlgorithm(
     }
   }
 
+  // Resolve components if provided
+  let resolvedComponents: Record<string, SketchComponentDef> | undefined;
+  if (input.components && Object.keys(input.components).length > 0) {
+    const renderer = def.renderer.type;
+    const shorthand: Record<string, string> = {};
+    for (const [name, value] of Object.entries(input.components)) {
+      if (typeof value === "string") {
+        shorthand[name] = value;
+      } else if (value.version) {
+        shorthand[name] = value.version;
+      } else if (value.code) {
+        if (!resolvedComponents) resolvedComponents = {};
+        resolvedComponents[name] = {
+          ...(value.version ? { version: value.version } : {}),
+          code: value.code,
+          ...(value.exports ? { exports: value.exports } : {}),
+        };
+      }
+    }
+    if (Object.keys(shorthand).length > 0) {
+      const resolved = resolveComponents(shorthand, renderer);
+      if (!resolvedComponents) resolvedComponents = {};
+      for (const rc of resolved) {
+        resolvedComponents[rc.name] = {
+          version: rc.version,
+          code: rc.code,
+          exports: [...rc.exports],
+        };
+      }
+    }
+  }
+
+  const updated: string[] = ["algorithm"];
+  const hasNewComponents = resolvedComponents && Object.keys(resolvedComponents).length > 0;
+  if (hasNewComponents) updated.push("components");
+
   const newDef: SketchDefinition = {
     ...def,
     modified: now(),
     algorithm: input.algorithm,
+    ...(hasNewComponents
+      ? { genart: "1.2" as const, components: resolvedComponents }
+      : {}),
     ...(input.agent ? { agent: input.agent } : {}),
     ...(input.model ? { model: input.model } : {}),
   };
@@ -492,7 +573,7 @@ export async function updateAlgorithm(
   }
   state.emitMutation("sketch:updated", {
     id: input.sketchId,
-    updated: ["algorithm"],
+    updated,
   });
 
   return {
@@ -501,6 +582,7 @@ export async function updateAlgorithm(
     renderer: def.renderer.type,
     algorithmLength: input.algorithm.length,
     validationPassed,
+    ...(hasNewComponents ? { componentsUpdated: true } : {}),
     fileContent: json,
   };
 }

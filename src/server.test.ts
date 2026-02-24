@@ -64,9 +64,9 @@ describe("MCP server integration", () => {
   });
 
   describe("capability listing", () => {
-    it("lists all 34 tools", async () => {
+    it("lists all 37 tools", async () => {
       const result = await client.listTools();
-      expect(result.tools.length).toBe(34);
+      expect(result.tools.length).toBe(37);
     });
 
     it("includes all workspace tools", async () => {
@@ -89,6 +89,14 @@ describe("MCP server integration", () => {
       expect(names).toContain("save_sketch");
       expect(names).toContain("fork_sketch");
       expect(names).toContain("delete_sketch");
+    });
+
+    it("includes all component tools", async () => {
+      const result = await client.listTools();
+      const names = result.tools.map((t) => t.name);
+      expect(names).toContain("list_components");
+      expect(names).toContain("add_component");
+      expect(names).toContain("remove_component");
     });
 
     it("includes all selection tools", async () => {

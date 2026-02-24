@@ -291,6 +291,75 @@ describe("sketch lifecycle tools", () => {
       expect(parsed.agent).toBeUndefined();
       expect(parsed.model).toBeUndefined();
     });
+
+    it("creates a sketch with components (shorthand)", async () => {
+      const path = join(tmpDir, "with-components.genart");
+      const result = await createSketch(state, {
+        id: "with-components",
+        title: "With Components",
+        path,
+        components: { prng: "^1.0.0" },
+        algorithm: VALID_ALGORITHM,
+      });
+
+      expect(result.success).toBe(true);
+
+      const raw = await readFile(path, "utf-8");
+      const parsed = JSON.parse(raw);
+      expect(parsed.genart).toBe("1.2");
+      expect(parsed.components).toBeDefined();
+      expect(parsed.components.prng).toBeDefined();
+      expect(parsed.components.prng.version).toBe("1.0.0");
+      expect(typeof parsed.components.prng.code).toBe("string");
+    });
+
+    it("creates a sketch with inline component (custom code)", async () => {
+      const path = join(tmpDir, "inline-comp.genart");
+      const customCode = "function customRng(seed) { return seed * 1.5; }";
+      const result = await createSketch(state, {
+        id: "inline-comp",
+        title: "Inline Component",
+        path,
+        components: {
+          "custom-rng": { code: customCode, exports: ["customRng"] },
+        },
+        algorithm: VALID_ALGORITHM,
+      });
+
+      expect(result.success).toBe(true);
+
+      const raw = await readFile(path, "utf-8");
+      const parsed = JSON.parse(raw);
+      expect(parsed.genart).toBe("1.2");
+      expect(parsed.components["custom-rng"].code).toBe(customCode);
+    });
+
+    it("rejects components with renderer mismatch", async () => {
+      await expect(
+        createSketch(state, {
+          id: "bad-comp",
+          title: "Bad Components",
+          path: join(tmpDir, "bad-comp.genart"),
+          renderer: "p5",
+          components: { "glsl-noise": "^1.0.0" },
+          algorithm: VALID_ALGORITHM,
+        }),
+      ).rejects.toThrow("target");
+    });
+
+    it("creates a sketch without components (version stays 1.1)", async () => {
+      const path = join(tmpDir, "no-comp.genart");
+      await createSketch(state, {
+        id: "no-comp",
+        title: "No Components",
+        path,
+      });
+
+      const raw = await readFile(path, "utf-8");
+      const parsed = JSON.parse(raw);
+      expect(parsed.genart).toBe("1.1");
+      expect(parsed.components).toBeUndefined();
+    });
   });
 
   // -----------------------------------------------------------------------
@@ -538,6 +607,40 @@ describe("sketch lifecycle tools", () => {
       const def = state.getSketch("test-sketch")!.definition;
       expect(def.agent).toBe("gemini-cli");
       expect(def.model).toBe("gemini-2.5-pro");
+    });
+
+    it("updates algorithm with components", async () => {
+      const result = await updateAlgorithm(state, {
+        sketchId: "test-sketch",
+        algorithm: UPDATED_ALGORITHM,
+        components: { prng: "^1.0.0" },
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.componentsUpdated).toBe(true);
+
+      const def = state.getSketch("test-sketch")!.definition;
+      expect(def.components).toBeDefined();
+      expect(def.components!.prng).toBeDefined();
+      expect(def.genart).toBe("1.2");
+
+      // Persisted
+      const raw = await readFile(
+        join(tmpDir, "test-sketch.genart"),
+        "utf-8",
+      );
+      const parsed = JSON.parse(raw);
+      expect(parsed.components.prng.version).toBe("1.0.0");
+    });
+
+    it("updates algorithm without components (no componentsUpdated field)", async () => {
+      const result = await updateAlgorithm(state, {
+        sketchId: "test-sketch",
+        algorithm: UPDATED_ALGORITHM,
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.componentsUpdated).toBeUndefined();
     });
   });
 
