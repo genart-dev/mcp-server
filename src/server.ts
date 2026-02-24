@@ -5,6 +5,11 @@
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
+import { createPluginRegistry, type PluginRegistry } from "@genart-dev/core";
+import typographyPlugin from "@genart-dev/plugin-typography";
+import filtersPlugin from "@genart-dev/plugin-filters";
+import shapesPlugin from "@genart-dev/plugin-shapes";
+import layoutGuidesPlugin from "@genart-dev/plugin-layout-guides";
 import { EditorState } from "./state.js";
 import {
   createWorkspace,
@@ -50,6 +55,21 @@ import {
 } from "./tools/components.js";
 import { captureScreenshot, captureBatch } from "./tools/capture.js";
 import { exportSketch } from "./tools/export.js";
+import {
+  designAddLayer,
+  designRemoveLayer,
+  designListLayers,
+  designGetLayer,
+  designUpdateLayer,
+  designSetTransform,
+  designSetBlend,
+  designReorderLayers,
+  designDuplicateLayer,
+  designToggleVisibility,
+  designLockLayer,
+  designCaptureComposite,
+} from "./tools/design.js";
+import { registerPluginMcpTools } from "./tools/design-plugins.js";
 import { registerResources } from "./resources/index.js";
 import { registerPrompts } from "./prompts/index.js";
 
@@ -68,12 +88,32 @@ function toolError(message: string) {
   };
 }
 
+/**
+ * Initialize the plugin registry with all free design plugins.
+ * Called once at server startup. Returns the registry for tool registration.
+ */
+async function initializePluginRegistry(): Promise<PluginRegistry> {
+  const registry = createPluginRegistry({
+    surface: "mcp",
+    supportsInteractiveTools: false,
+    supportsRendering: false,
+  });
+
+  // Register free plugins
+  await registry.register(typographyPlugin);
+  await registry.register(filtersPlugin);
+  await registry.register(shapesPlugin);
+  await registry.register(layoutGuidesPlugin);
+
+  return registry;
+}
+
 /** Create and configure the MCP server with all tools. */
 export function createServer(state: EditorState): McpServer {
   const server = new McpServer(
     {
       name: "@genart/mcp-server",
-      version: "0.0.1",
+      version: "0.3.0",
     },
     {
       capabilities: {
@@ -83,6 +123,18 @@ export function createServer(state: EditorState): McpServer {
       },
     },
   );
+
+  // Initialize plugin registry (async, but we register tools synchronously
+  // after awaiting inside this wrapper — the tools are registered before
+  // the server starts accepting requests because connect() is called after)
+  const registryReady = initializePluginRegistry().then((registry) => {
+    state.pluginRegistry = registry;
+    registerPluginMcpTools(server, registry, state);
+  });
+
+  // Store the promise so callers can await if needed
+  (server as McpServer & { _pluginsReady?: Promise<void> })._pluginsReady =
+    registryReady;
 
   registerWorkspaceTools(server, state);
   registerSketchTools(server, state);
@@ -94,6 +146,7 @@ export function createServer(state: EditorState): McpServer {
   registerMergeTools(server, state);
   registerSnapshotTools(server, state);
   registerKnowledgeTools(server, state);
+  registerDesignTools(server, state);
 
   registerCaptureTools(server, state);
   registerExportTools(server, state);
@@ -1187,6 +1240,299 @@ function registerExportTools(server: McpServer, state: EditorState): void {
     async (args) => {
       try {
         const result = await exportSketch(state, args);
+        return jsonResult(result);
+      } catch (e) {
+        return toolError(e instanceof Error ? e.message : String(e));
+      }
+    },
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Design Layer Tools (12 core tools)
+// ---------------------------------------------------------------------------
+
+function registerDesignTools(server: McpServer, state: EditorState): void {
+  server.tool(
+    "design_add_layer",
+    "Add a new design layer of a given type to the active sketch. Layer types come from registered plugins (e.g. 'typography:text', 'filter:grain', 'shapes:rect', 'guides:thirds').",
+    {
+      sketchId: z
+        .string()
+        .optional()
+        .describe("Target sketch ID (default: selected sketch)"),
+      type: z.string().describe("Layer type ID (e.g. 'typography:text', 'filter:grain', 'shapes:rect')"),
+      name: z.string().optional().describe("Layer display name (default: type's display name)"),
+      properties: z
+        .record(z.unknown())
+        .optional()
+        .describe("Initial layer properties (merged with type defaults)"),
+      transform: z
+        .object({
+          x: z.number().optional(),
+          y: z.number().optional(),
+          width: z.number().optional(),
+          height: z.number().optional(),
+          rotation: z.number().optional(),
+          scaleX: z.number().optional(),
+          scaleY: z.number().optional(),
+          anchorX: z.number().optional(),
+          anchorY: z.number().optional(),
+        })
+        .optional()
+        .describe("Layer transform (default: full canvas)"),
+      opacity: z.number().optional().describe("Layer opacity 0–1 (default: 1)"),
+      blendMode: z.string().optional().describe("Blend mode (default: 'normal')"),
+      index: z.number().optional().describe("Insert position in layer stack (default: top)"),
+    },
+    async (args) => {
+      try {
+        const result = await designAddLayer(state, args);
+        return jsonResult(result);
+      } catch (e) {
+        return toolError(e instanceof Error ? e.message : String(e));
+      }
+    },
+  );
+
+  server.tool(
+    "design_remove_layer",
+    "Remove a design layer from the active sketch",
+    {
+      sketchId: z
+        .string()
+        .optional()
+        .describe("Target sketch ID (default: selected sketch)"),
+      layerId: z.string().describe("ID of the layer to remove"),
+    },
+    async (args) => {
+      try {
+        const result = await designRemoveLayer(state, args);
+        return jsonResult(result);
+      } catch (e) {
+        return toolError(e instanceof Error ? e.message : String(e));
+      }
+    },
+  );
+
+  server.tool(
+    "design_list_layers",
+    "List all design layers in the active sketch with their types, visibility, and key properties",
+    {
+      sketchId: z
+        .string()
+        .optional()
+        .describe("Target sketch ID (default: selected sketch)"),
+    },
+    async (args) => {
+      try {
+        const result = await designListLayers(state, args);
+        return jsonResult(result);
+      } catch (e) {
+        return toolError(e instanceof Error ? e.message : String(e));
+      }
+    },
+  );
+
+  server.tool(
+    "design_get_layer",
+    "Get full details of a single design layer including all properties and transform",
+    {
+      sketchId: z
+        .string()
+        .optional()
+        .describe("Target sketch ID (default: selected sketch)"),
+      layerId: z.string().describe("ID of the layer to inspect"),
+    },
+    async (args) => {
+      try {
+        const result = await designGetLayer(state, args);
+        return jsonResult(result);
+      } catch (e) {
+        return toolError(e instanceof Error ? e.message : String(e));
+      }
+    },
+  );
+
+  server.tool(
+    "design_update_layer",
+    "Update properties on a design layer (e.g. text content, filter intensity, shape fill color)",
+    {
+      sketchId: z
+        .string()
+        .optional()
+        .describe("Target sketch ID (default: selected sketch)"),
+      layerId: z.string().describe("ID of the layer to update"),
+      name: z.string().optional().describe("New display name"),
+      properties: z
+        .record(z.unknown())
+        .optional()
+        .describe("Property key-value pairs to set"),
+    },
+    async (args) => {
+      try {
+        const result = await designUpdateLayer(state, args);
+        return jsonResult(result);
+      } catch (e) {
+        return toolError(e instanceof Error ? e.message : String(e));
+      }
+    },
+  );
+
+  server.tool(
+    "design_set_transform",
+    "Set the position, size, rotation, and scale of a design layer",
+    {
+      sketchId: z
+        .string()
+        .optional()
+        .describe("Target sketch ID (default: selected sketch)"),
+      layerId: z.string().describe("ID of the layer to transform"),
+      x: z.number().optional().describe("X position"),
+      y: z.number().optional().describe("Y position"),
+      width: z.number().optional().describe("Width"),
+      height: z.number().optional().describe("Height"),
+      rotation: z.number().optional().describe("Rotation in degrees"),
+      scaleX: z.number().optional().describe("Horizontal scale"),
+      scaleY: z.number().optional().describe("Vertical scale"),
+      anchorX: z.number().optional().describe("Anchor X (0–1)"),
+      anchorY: z.number().optional().describe("Anchor Y (0–1)"),
+    },
+    async (args) => {
+      try {
+        const result = await designSetTransform(state, args);
+        return jsonResult(result);
+      } catch (e) {
+        return toolError(e instanceof Error ? e.message : String(e));
+      }
+    },
+  );
+
+  server.tool(
+    "design_set_blend",
+    "Set blend mode and/or opacity on a design layer",
+    {
+      sketchId: z
+        .string()
+        .optional()
+        .describe("Target sketch ID (default: selected sketch)"),
+      layerId: z.string().describe("ID of the layer"),
+      blendMode: z
+        .enum([
+          "normal", "multiply", "screen", "overlay",
+          "darken", "lighten", "color-dodge", "color-burn",
+          "hard-light", "soft-light", "difference", "exclusion",
+          "hue", "saturation", "color", "luminosity",
+        ])
+        .optional()
+        .describe("CSS blend mode"),
+      opacity: z.number().optional().describe("Layer opacity 0–1"),
+    },
+    async (args) => {
+      try {
+        const result = await designSetBlend(state, args);
+        return jsonResult(result);
+      } catch (e) {
+        return toolError(e instanceof Error ? e.message : String(e));
+      }
+    },
+  );
+
+  server.tool(
+    "design_reorder_layers",
+    "Move a design layer to a new position in the z-order stack",
+    {
+      sketchId: z
+        .string()
+        .optional()
+        .describe("Target sketch ID (default: selected sketch)"),
+      layerId: z.string().describe("ID of the layer to move"),
+      newIndex: z.number().describe("New position (0 = bottom, n-1 = top)"),
+    },
+    async (args) => {
+      try {
+        const result = await designReorderLayers(state, args);
+        return jsonResult(result);
+      } catch (e) {
+        return toolError(e instanceof Error ? e.message : String(e));
+      }
+    },
+  );
+
+  server.tool(
+    "design_duplicate_layer",
+    "Clone a design layer with a new ID, inserted directly above the source",
+    {
+      sketchId: z
+        .string()
+        .optional()
+        .describe("Target sketch ID (default: selected sketch)"),
+      layerId: z.string().describe("ID of the layer to duplicate"),
+    },
+    async (args) => {
+      try {
+        const result = await designDuplicateLayer(state, args);
+        return jsonResult(result);
+      } catch (e) {
+        return toolError(e instanceof Error ? e.message : String(e));
+      }
+    },
+  );
+
+  server.tool(
+    "design_toggle_visibility",
+    "Show or hide a design layer",
+    {
+      sketchId: z
+        .string()
+        .optional()
+        .describe("Target sketch ID (default: selected sketch)"),
+      layerId: z.string().describe("ID of the layer"),
+      visible: z.boolean().optional().describe("Set visibility (default: toggle)"),
+    },
+    async (args) => {
+      try {
+        const result = await designToggleVisibility(state, args);
+        return jsonResult(result);
+      } catch (e) {
+        return toolError(e instanceof Error ? e.message : String(e));
+      }
+    },
+  );
+
+  server.tool(
+    "design_lock_layer",
+    "Lock or unlock a design layer to prevent accidental edits",
+    {
+      sketchId: z
+        .string()
+        .optional()
+        .describe("Target sketch ID (default: selected sketch)"),
+      layerId: z.string().describe("ID of the layer"),
+      locked: z.boolean().optional().describe("Set lock state (default: toggle)"),
+    },
+    async (args) => {
+      try {
+        const result = await designLockLayer(state, args);
+        return jsonResult(result);
+      } catch (e) {
+        return toolError(e instanceof Error ? e.message : String(e));
+      }
+    },
+  );
+
+  server.tool(
+    "design_capture_composite",
+    "Get info about the design layer composite for a sketch. For full visual capture use capture_screenshot.",
+    {
+      sketchId: z
+        .string()
+        .optional()
+        .describe("Target sketch ID (default: selected sketch)"),
+    },
+    async (args) => {
+      try {
+        const result = await designCaptureComposite(state, args);
         return jsonResult(result);
       } catch (e) {
         return toolError(e instanceof Error ? e.message : String(e));

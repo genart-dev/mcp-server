@@ -33,6 +33,9 @@ async function createTestPair(state?: EditorState) {
     server.connect(serverTransport),
     client.connect(clientTransport),
   ]);
+  // Wait for plugin registration to complete
+  await (server as typeof server & { _pluginsReady?: Promise<void> })
+    ._pluginsReady;
   return { client, server, state: editorState };
 }
 
@@ -64,9 +67,9 @@ describe("MCP server integration", () => {
   });
 
   describe("capability listing", () => {
-    it("lists all 37 tools", async () => {
+    it("lists all 68 tools (37 original + 12 design core + 19 plugin)", async () => {
       const result = await client.listTools();
-      expect(result.tools.length).toBe(37);
+      expect(result.tools.length).toBe(68);
     });
 
     it("includes all workspace tools", async () => {

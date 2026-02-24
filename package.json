@@ -1,6 +1,6 @@
 {
   "name": "@genart-dev/mcp-server",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "MCP server for genart.dev — tools, resources, and prompts for generative art",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -63,7 +63,11 @@
     "prepublishOnly": "pnpm build"
   },
   "dependencies": {
-    "@genart-dev/core": "^0.2.0",
+    "@genart-dev/core": "^0.3.0",
+    "@genart-dev/plugin-typography": "^0.1.0",
+    "@genart-dev/plugin-filters": "^0.1.0",
+    "@genart-dev/plugin-shapes": "^0.1.0",
+    "@genart-dev/plugin-layout-guides": "^0.1.0",
     "@modelcontextprotocol/sdk": "^1.12.0",
     "archiver": "^7.0.1",
     "zod": "^3.24.0"

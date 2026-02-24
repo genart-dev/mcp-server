@@ -9,8 +9,20 @@ importers:
   .:
     dependencies:
       '@genart-dev/core':
-        specifier: ^0.2.0
-        version: 0.2.0
+        specifier: link:../core
+        version: link:../core
+      '@genart-dev/plugin-filters':
+        specifier: link:../genart/packages/plugins/filters
+        version: link:../genart/packages/plugins/filters
+      '@genart-dev/plugin-layout-guides':
+        specifier: link:../genart/packages/plugins/layout-guides
+        version: link:../genart/packages/plugins/layout-guides
+      '@genart-dev/plugin-shapes':
+        specifier: link:../genart/packages/plugins/shapes
+        version: link:../genart/packages/plugins/shapes
+      '@genart-dev/plugin-typography':
+        specifier: link:../genart/packages/plugins/typography
+        version: link:../genart/packages/plugins/typography
       '@modelcontextprotocol/sdk':
         specifier: ^1.12.0
         version: 1.27.0(zod@3.25.76)
@@ -205,15 +217,6 @@ packages:
     engines: {node: '>=18'}
     cpu: [x64]
     os: [win32]
-
-  '@genart-dev/components@0.1.0':
-    resolution: {integrity: sha512-UQARaUB/1v4CeYwqS/EGoxZ2adpbZ5QX6u+v3gxWbSEMbGT4nulChAp8kEJMAmUuXpLUL6amQnaYj9nE6RNxrg==}
-
-  '@genart-dev/core@0.2.0':
-    resolution: {integrity: sha512-qxXbSc9pqIDxbLvusg+3auWOOHRlIm0+tgzPS333xSJ/cYEUABDFTeTZ+5648McQJFMCWRUtNWsNVyVGYNW2jw==}
-
-  '@genart-dev/format@0.2.0':
-    resolution: {integrity: sha512-zSeFfrJ9t8nZ/093b+0XLb8VElSSW3tx1hQZJSRsRlkupxByCbERde6kMvxH6USBuZ3truEanIIOrWDXB+PnRQ==}
 
   '@hono/node-server@1.19.9':
     resolution: {integrity: sha512-vHL6w3ecZsky+8P5MD+eFfaGTyCeOHUIFYMGpQGbrBTSmNNoxv0if69rEZ5giu36weC5saFuznL411gRX7bJDw==}
@@ -1751,17 +1754,6 @@ snapshots:
 
   '@esbuild/win32-x64@0.27.3':
     optional: true
-
-  '@genart-dev/components@0.1.0':
-    dependencies:
-      '@genart-dev/format': 0.2.0
-
-  '@genart-dev/core@0.2.0':
-    dependencies:
-      '@genart-dev/components': 0.1.0
-      '@genart-dev/format': 0.2.0
-
-  '@genart-dev/format@0.2.0': {}
 
   '@hono/node-server@1.19.9(hono@4.12.2)':
     dependencies:

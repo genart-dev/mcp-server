@@ -13,8 +13,15 @@ import {
   parseWorkspace,
   serializeGenart,
   serializeWorkspace,
+  createLayerStack,
   type SketchDefinition,
   type WorkspaceDefinition,
+  type PluginRegistry,
+  type LayerStackAccessor,
+  type McpToolContext,
+  type DesignChangeType,
+  type SketchStateAccessor,
+  type DesignLayer,
 } from "@genart-dev/core";
 import { writeFile } from "fs/promises";
 
@@ -35,7 +42,11 @@ export type EditorMutationType =
   | "sketch:saved"
   | "sketch:removed"
   | "sketch:deleted"
-  | "selection:changed";
+  | "selection:changed"
+  | "design:layer-added"
+  | "design:layer-removed"
+  | "design:layer-updated"
+  | "design:layer-reordered";
 
 /** Payload for EditorState mutation events. */
 export interface EditorMutationEvent {
@@ -78,6 +89,12 @@ export class EditorState extends EventEmitter {
    * instead of writing to disk. Set by mcp-host for HTTP-based sessions.
    */
   remoteMode = false;
+
+  /** Plugin registry for design mode. Set during server initialization. */
+  pluginRegistry: PluginRegistry | null = null;
+
+  /** Layer stacks keyed by sketch ID. Created lazily when design tools are used. */
+  layerStacks: Map<string, LayerStackAccessor> = new Map();
 
   constructor(options?: { basePath?: string; remoteMode?: boolean }) {
     super();
@@ -149,6 +166,7 @@ export class EditorState extends EventEmitter {
     this.workspace = ws;
     this.sketches.clear();
     this.selection.clear();
+    this.layerStacks.clear();
 
     // Load all referenced sketches
     for (const ref of ws.sketches) {
@@ -198,6 +216,7 @@ export class EditorState extends EventEmitter {
   removeSketch(id: string): void {
     this.sketches.delete(id);
     this.selection.delete(id);
+    this.layerStacks.delete(id);
     this.emitMutation("sketch:removed", { id });
   }
 
@@ -244,6 +263,92 @@ export class EditorState extends EventEmitter {
       sketches,
       selection: Array.from(this.selection),
     };
+  }
+
+  /**
+   * Get or create a LayerStackAccessor for a sketch.
+   * Initializes from the sketch's persisted design layers.
+   */
+  getLayerStack(sketchId: string): LayerStackAccessor {
+    let stack = this.layerStacks.get(sketchId);
+    if (stack) return stack;
+
+    const loaded = this.requireSketch(sketchId);
+    const initialLayers = (loaded.definition.layers ?? []) as DesignLayer[];
+
+    stack = createLayerStack(initialLayers, (changeType: DesignChangeType) => {
+      this.syncLayersToDefinition(sketchId);
+      const mutationType = `design:${changeType}` as EditorMutationType;
+      this.emitMutation(mutationType, { sketchId, changeType });
+    });
+
+    this.layerStacks.set(sketchId, stack);
+    return stack;
+  }
+
+  /**
+   * Sync the layer stack's current state back to the sketch definition.
+   * Called automatically on every layer mutation.
+   */
+  private syncLayersToDefinition(sketchId: string): void {
+    const loaded = this.sketches.get(sketchId);
+    const stack = this.layerStacks.get(sketchId);
+    if (!loaded || !stack) return;
+
+    const layers = stack.getAll();
+    loaded.definition = {
+      ...loaded.definition,
+      layers: layers.length > 0 ? layers : undefined,
+    };
+  }
+
+  /**
+   * Create an McpToolContext for a plugin's MCP tool handler.
+   * Provides access to the layer stack, sketch state, and change notifications.
+   */
+  createMcpToolContext(sketchId: string): McpToolContext {
+    const loaded = this.requireSketch(sketchId);
+    const layerStack = this.getLayerStack(sketchId);
+    const def = loaded.definition;
+
+    const sketchState: SketchStateAccessor = {
+      seed: def.state.seed,
+      params: def.state.params,
+      colorPalette: def.state.colorPalette,
+      canvasWidth: def.canvas.width,
+      canvasHeight: def.canvas.height,
+      rendererId: def.renderer.type,
+    };
+
+    return {
+      layers: layerStack,
+      sketchState,
+      canvasWidth: def.canvas.width,
+      canvasHeight: def.canvas.height,
+      async resolveAsset(_assetId: string): Promise<Buffer | null> {
+        return null;
+      },
+      async captureComposite(_format?: "png" | "jpeg"): Promise<Buffer> {
+        throw new Error("captureComposite is not available in headless MCP mode");
+      },
+      emitChange(_changeType: DesignChangeType): void {
+        // onChange is already handled by the layer stack's callback
+      },
+    };
+  }
+
+  /**
+   * Get the currently selected sketch ID for design operations.
+   * Returns the single selected sketch, or throws if none/multiple selected.
+   */
+  requireSelectedSketchId(): string {
+    if (this.selection.size === 0) {
+      throw new Error("No sketch is selected. Use select_sketch or open_sketch first.");
+    }
+    if (this.selection.size > 1) {
+      throw new Error("Multiple sketches are selected. Design operations require a single sketch.");
+    }
+    return this.selection.values().next().value!;
   }
 
   /** Emit a mutation event for external listeners (WebSocket broadcast, sidecar IPC). */
