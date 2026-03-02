@@ -9,20 +9,20 @@ importers:
   .:
     dependencies:
       '@genart-dev/core':
-        specifier: link:../core
-        version: link:../core
+        specifier: ^0.3.0
+        version: 0.3.1
       '@genart-dev/plugin-filters':
-        specifier: link:../genart/packages/plugins/filters
-        version: link:../genart/packages/plugins/filters
+        specifier: ^0.1.0
+        version: 0.1.0
       '@genart-dev/plugin-layout-guides':
-        specifier: link:../genart/packages/plugins/layout-guides
-        version: link:../genart/packages/plugins/layout-guides
+        specifier: ^0.1.0
+        version: 0.1.0
       '@genart-dev/plugin-shapes':
-        specifier: link:../genart/packages/plugins/shapes
-        version: link:../genart/packages/plugins/shapes
+        specifier: ^0.1.0
+        version: 0.1.0
       '@genart-dev/plugin-typography':
-        specifier: link:../genart/packages/plugins/typography
-        version: link:../genart/packages/plugins/typography
+        specifier: ^0.1.0
+        version: 0.1.0
       '@modelcontextprotocol/sdk':
         specifier: ^1.12.0
         version: 1.27.0(zod@3.25.76)
@@ -217,6 +217,30 @@ packages:
     engines: {node: '>=18'}
     cpu: [x64]
     os: [win32]
+
+  '@genart-dev/components@0.1.0':
+    resolution: {integrity: sha512-UQARaUB/1v4CeYwqS/EGoxZ2adpbZ5QX6u+v3gxWbSEMbGT4nulChAp8kEJMAmUuXpLUL6amQnaYj9nE6RNxrg==}
+
+  '@genart-dev/core@0.3.1':
+    resolution: {integrity: sha512-McUayfN+ZlEbyDVouD0h1zRMxSvpHbQkSO+Jhal+mIfwaOYQzzwYElfbnUsvhv5V1QAnHEpn0TXdrrhPjYKSLA==}
+
+  '@genart-dev/format@0.2.0':
+    resolution: {integrity: sha512-zSeFfrJ9t8nZ/093b+0XLb8VElSSW3tx1hQZJSRsRlkupxByCbERde6kMvxH6USBuZ3truEanIIOrWDXB+PnRQ==}
+
+  '@genart-dev/format@0.3.0':
+    resolution: {integrity: sha512-j9dlH1qnGJGSz8HB8Fg4s8SDeWbKtX9t5n9pBY4XdQKfz3q7yFJtKUvmVblOwyKRx/WZRhjL5Xt331icruubjA==}
+
+  '@genart-dev/plugin-filters@0.1.0':
+    resolution: {integrity: sha512-w7LvjIhr/bBZC4h2q80o2i3U1RnN0yR7NeHGGm8KbyuQGQqVocuXFQqCWRcLRRpLlzPOmqIMVGKn3splH2NRpA==}
+
+  '@genart-dev/plugin-layout-guides@0.1.0':
+    resolution: {integrity: sha512-2lFEiTwj8+OXOzD/u3HTQYm1EnIkMswN9s7oeoVQPxOi8Zlqr/05TLxnzMIDK7U4cZ903XkbUaBYoxykSg202Q==}
+
+  '@genart-dev/plugin-shapes@0.1.0':
+    resolution: {integrity: sha512-UcteKFtjZY4grfZAHBpQ/RI3A8XjpzfzNIxoiOhrehLvTXpvCleCCQgV6KExSQ0A4B7eBCTWOAFhSDVP6o1WXQ==}
+
+  '@genart-dev/plugin-typography@0.1.0':
+    resolution: {integrity: sha512-h34ZAuVHqZJoGzW6euN8r2rPepGR0ca9V0ai0zyXLAyD1648VeNCsR4/Q9Eq7UBCYlkCKejP/2Vq3clHUHDUkw==}
 
   '@hono/node-server@1.19.9':
     resolution: {integrity: sha512-vHL6w3ecZsky+8P5MD+eFfaGTyCeOHUIFYMGpQGbrBTSmNNoxv0if69rEZ5giu36weC5saFuznL411gRX7bJDw==}
@@ -1754,6 +1778,35 @@ snapshots:
 
   '@esbuild/win32-x64@0.27.3':
     optional: true
+
+  '@genart-dev/components@0.1.0':
+    dependencies:
+      '@genart-dev/format': 0.2.0
+
+  '@genart-dev/core@0.3.1':
+    dependencies:
+      '@genart-dev/components': 0.1.0
+      '@genart-dev/format': 0.3.0
+
+  '@genart-dev/format@0.2.0': {}
+
+  '@genart-dev/format@0.3.0': {}
+
+  '@genart-dev/plugin-filters@0.1.0':
+    dependencies:
+      '@genart-dev/core': 0.3.1
+
+  '@genart-dev/plugin-layout-guides@0.1.0':
+    dependencies:
+      '@genart-dev/core': 0.3.1
+
+  '@genart-dev/plugin-shapes@0.1.0':
+    dependencies:
+      '@genart-dev/core': 0.3.1
+
+  '@genart-dev/plugin-typography@0.1.0':
+    dependencies:
+      '@genart-dev/core': 0.3.1
 
   '@hono/node-server@1.19.9(hono@4.12.2)':
     dependencies:
