@@ -106,9 +106,9 @@ describe("component tools", () => {
       const result = await listComponents(state, {});
 
       expect(result.count).toBeGreaterThan(0);
-      expect(result.count).toBe(55);
+      expect(result.count).toBe(56);
       const components = result.components as Array<{ name: string }>;
-      expect(components.length).toBe(55);
+      expect(components.length).toBe(56);
     });
 
     it("filters by renderer (p5 = JS components)", async () => {
@@ -118,7 +118,7 @@ describe("component tools", () => {
         name: string;
         target: string;
       }>;
-      expect(components.length).toBe(37);
+      expect(components.length).toBe(38);
       for (const c of components) {
         expect(c.target).toBe("js");
       }

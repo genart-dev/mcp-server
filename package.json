@@ -70,6 +70,7 @@
     "@genart-dev/plugin-shapes": "^0.1.0",
     "@genart-dev/plugin-textures": "^0.1.0",
     "@genart-dev/plugin-typography": "^0.1.0",
+    "@genart-dev/symbols": "file:../symbols",
     "@modelcontextprotocol/sdk": "^1.12.0",
     "archiver": "^7.0.1",
     "zod": "^3.24.0"
