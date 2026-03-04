@@ -28,3 +28,15 @@ declare module "@genart-dev/plugin-layout-guides" {
   const plugin: DesignPlugin;
   export default plugin;
 }
+
+declare module "@genart-dev/plugin-painting" {
+  import type { DesignPlugin } from "@genart-dev/core";
+  const plugin: DesignPlugin;
+  export default plugin;
+}
+
+declare module "@genart-dev/plugin-textures" {
+  import type { DesignPlugin } from "@genart-dev/core";
+  const plugin: DesignPlugin;
+  export default plugin;
+}

@@ -144,6 +144,12 @@ export async function getGuidelines(
     colours: "color",
     layout: "composition",
     palette: "color",
+    painting: "painting",
+    watercolor: "painting",
+    ink: "illustration",
+    illustration: "illustration",
+    "mixed-media": "illustration",
+    "mixed media": "illustration",
   };
 
   const category = categoryMap[topic];
@@ -151,7 +157,7 @@ export async function getGuidelines(
     return {
       success: false,
       topic,
-      error: `No guidelines found for topic: '${topic}'. Available topics: composition, color, parameters, animation, performance`,
+      error: `No guidelines found for topic: '${topic}'. Available topics: composition, color, painting, illustration, parameters, animation, performance`,
       guidelines: null,
       relatedSkills: [],
     };

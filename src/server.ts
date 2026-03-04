@@ -10,6 +10,8 @@ import typographyPlugin from "@genart-dev/plugin-typography";
 import filtersPlugin from "@genart-dev/plugin-filters";
 import shapesPlugin from "@genart-dev/plugin-shapes";
 import layoutGuidesPlugin from "@genart-dev/plugin-layout-guides";
+import paintingPlugin from "@genart-dev/plugin-painting";
+import texturesPlugin from "@genart-dev/plugin-textures";
 import { EditorState } from "./state.js";
 import {
   createWorkspace,
@@ -104,6 +106,8 @@ async function initializePluginRegistry(): Promise<PluginRegistry> {
   await registry.register(filtersPlugin);
   await registry.register(shapesPlugin);
   await registry.register(layoutGuidesPlugin);
+  await registry.register(paintingPlugin);
+  await registry.register(texturesPlugin);
 
   return registry;
 }
