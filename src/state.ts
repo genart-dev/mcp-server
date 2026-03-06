@@ -21,6 +21,7 @@ import {
   type McpToolContext,
   type DesignChangeType,
   type SketchStateAccessor,
+  type SketchMutator,
   type DesignLayer,
 } from "@genart-dev/core";
 import { writeFile } from "fs/promises";
@@ -320,9 +321,41 @@ export class EditorState extends EventEmitter {
       rendererId: def.renderer.type,
     };
 
+    const sketch: SketchMutator = {
+      getSymbols() {
+        return (loaded.definition.symbols ?? {}) as Readonly<Record<string, unknown>>;
+      },
+      setSymbols(symbols: Record<string, unknown> | undefined) {
+        loaded.definition = { ...loaded.definition, symbols: symbols as typeof loaded.definition.symbols };
+      },
+      getComponents() {
+        return (loaded.definition.components ?? {}) as Readonly<Record<string, unknown>>;
+      },
+      setComponents(components: Record<string, unknown>) {
+        loaded.definition = { ...loaded.definition, components: components as typeof loaded.definition.components };
+      },
+      getThirdParty() {
+        const def = loaded.definition as unknown as Record<string, unknown>;
+        return ((def["thirdParty"] as unknown[]) ?? []) as readonly Record<string, unknown>[];
+      },
+      setThirdParty(notices: Record<string, unknown>[] | undefined) {
+        (loaded.definition as unknown as Record<string, unknown>)["thirdParty"] = notices;
+      },
+      getRenderer() {
+        return loaded.definition.renderer.type;
+      },
+      getGenartVersion() {
+        return loaded.definition.genart;
+      },
+      setGenartVersion(version: string) {
+        loaded.definition = { ...loaded.definition, genart: version };
+      },
+    };
+
     return {
       layers: layerStack,
       sketchState,
+      sketch,
       canvasWidth: def.canvas.width,
       canvasHeight: def.canvas.height,
       async resolveAsset(_assetId: string): Promise<Buffer | null> {

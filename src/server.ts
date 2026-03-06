@@ -12,6 +12,17 @@ import shapesPlugin from "@genart-dev/plugin-shapes";
 import layoutGuidesPlugin from "@genart-dev/plugin-layout-guides";
 import paintingPlugin from "@genart-dev/plugin-painting";
 import texturesPlugin from "@genart-dev/plugin-textures";
+import animationPlugin from "@genart-dev/plugin-animation";
+import colorAdjustPlugin from "@genart-dev/plugin-color-adjust";
+import compositingPlugin from "@genart-dev/plugin-compositing";
+import constructionPlugin from "@genart-dev/plugin-construction";
+import distributionPlugin from "@genart-dev/plugin-distribution";
+import figurePlugin from "@genart-dev/plugin-figure";
+import layoutCompositionPlugin from "@genart-dev/plugin-layout-composition";
+import perspectivePlugin from "@genart-dev/plugin-perspective";
+import posesPlugin from "@genart-dev/plugin-poses";
+import stylesPlugin from "@genart-dev/plugin-styles";
+import symbolsPlugin from "@genart-dev/plugin-symbols";
 import { EditorState } from "./state.js";
 import {
   createWorkspace,
@@ -56,14 +67,6 @@ import {
   removeComponent,
 } from "./tools/components.js";
 import { captureScreenshot, captureBatch } from "./tools/capture.js";
-import {
-  searchSymbolsTool,
-  listSymbolCategoriesTool,
-  addSymbol,
-  removeSymbol,
-  createSymbol,
-  fetchSymbol,
-} from "./tools/symbols.js";
 import { exportSketch } from "./tools/export.js";
 import {
   designAddLayer,
@@ -109,13 +112,24 @@ async function initializePluginRegistry(): Promise<PluginRegistry> {
     supportsRendering: false,
   });
 
-  // Register free plugins
+  // Register all design plugins
   await registry.register(typographyPlugin);
   await registry.register(filtersPlugin);
   await registry.register(shapesPlugin);
   await registry.register(layoutGuidesPlugin);
   await registry.register(paintingPlugin);
   await registry.register(texturesPlugin);
+  await registry.register(animationPlugin);
+  await registry.register(colorAdjustPlugin);
+  await registry.register(compositingPlugin);
+  await registry.register(constructionPlugin);
+  await registry.register(distributionPlugin);
+  await registry.register(figurePlugin);
+  await registry.register(layoutCompositionPlugin);
+  await registry.register(perspectivePlugin);
+  await registry.register(posesPlugin);
+  await registry.register(stylesPlugin);
+  await registry.register(symbolsPlugin);
 
   return registry;
 }
@@ -151,7 +165,6 @@ export function createServer(state: EditorState): McpServer {
   registerWorkspaceTools(server, state);
   registerSketchTools(server, state);
   registerComponentTools(server, state);
-  registerSymbolTools(server, state);
   registerSelectionTools(server, state);
   registerParameterTools(server, state);
   registerArrangementTools(server, state);
@@ -1621,158 +1634,3 @@ function registerKnowledgeTools(server: McpServer, _state: EditorState): void {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Symbol Tools
-// ---------------------------------------------------------------------------
-
-function registerSymbolTools(server: McpServer, state: EditorState): void {
-  server.tool(
-    "search_symbols",
-    "Search the symbol registry by keyword, category, and/or style. Returns symbols with their IDs, tags, and available styles.",
-    {
-      query: z.string().optional().describe("Keyword to match against symbol name, tags, and description"),
-      category: z
-        .enum(["nature", "architecture", "people", "vehicles", "objects", "animals", "abstract", "celestial", "flora", "weather"])
-        .optional()
-        .describe("Filter by category"),
-      style: z
-        .enum(["geometric", "organic", "silhouette", "sketch"])
-        .optional()
-        .describe("Filter by available style"),
-      limit: z.number().optional().describe("Maximum results to return (default: 20)"),
-    },
-    async (args) => {
-      try {
-        const result = await searchSymbolsTool(state, args);
-        return jsonResult(result);
-      } catch (e) {
-        return toolError(e instanceof Error ? e.message : String(e));
-      }
-    },
-  );
-
-  server.tool(
-    "list_symbol_categories",
-    "List all symbol categories with symbol counts. Use this to browse the symbol library before searching.",
-    {},
-    async () => {
-      try {
-        const result = await listSymbolCategoriesTool(state);
-        return jsonResult(result);
-      } catch (e) {
-        return toolError(e instanceof Error ? e.message : String(e));
-      }
-    },
-  );
-
-  server.tool(
-    "add_symbol",
-    "Add a symbol from the registry to a sketch. Resolves the symbol's SVG path data and caches it in the sketch file. Automatically adds the symbol-draw component if not already present.",
-    {
-      sketchId: z.string().describe("ID of the sketch to add the symbol to"),
-      symbol: z.string().describe("Symbol ID (e.g. 'pine-tree', 'sailboat', 'mountain')"),
-      style: z
-        .enum(["geometric", "organic", "silhouette", "sketch"])
-        .optional()
-        .describe("Style variant to use (default: 'geometric')"),
-    },
-    async (args) => {
-      try {
-        const result = await addSymbol(state, args);
-        return jsonResult(result);
-      } catch (e) {
-        return toolError(e instanceof Error ? e.message : String(e));
-      }
-    },
-  );
-
-  server.tool(
-    "remove_symbol",
-    "Remove a symbol from a sketch. Warns if the algorithm references the symbol ID.",
-    {
-      sketchId: z.string().describe("ID of the sketch to remove the symbol from"),
-      symbol: z.string().describe("Symbol ID to remove"),
-    },
-    async (args) => {
-      try {
-        const result = await removeSymbol(state, args);
-        return jsonResult(result);
-      } catch (e) {
-        return toolError(e instanceof Error ? e.message : String(e));
-      }
-    },
-  );
-
-  server.tool(
-    "create_symbol",
-    "Create a custom AI-generated symbol with SVG path data. Validates path syntax and enforces a 10KB size limit. Optionally caches it in the sketch file for use with drawSymbol().",
-    {
-      name: z.string().describe("Human-readable symbol name (e.g. 'Weeping Willow')"),
-      id: z.string().optional().describe("Symbol ID (kebab-case, auto-generated from name if omitted)"),
-      category: z
-        .enum(["nature", "architecture", "people", "vehicles", "objects", "animals", "abstract", "celestial", "flora", "weather"])
-        .describe("Symbol category"),
-      tags: z.array(z.string()).describe("Search tags (e.g. ['tree', 'weeping', 'willow', 'nature'])"),
-      description: z.string().describe("Short description of the symbol"),
-      paths: z
-        .array(
-          z.object({
-            d: z.string().describe("SVG path d attribute"),
-            fill: z.string().optional(),
-            stroke: z.string().optional(),
-            strokeWidth: z.number().optional(),
-            role: z.string().optional().describe("Semantic role (e.g. 'trunk', 'canopy')"),
-          }),
-        )
-        .describe("Array of SVG path objects"),
-      viewBox: z.string().describe("SVG viewBox (e.g. '0 0 100 100')"),
-      style: z
-        .enum(["geometric", "organic", "silhouette", "sketch"])
-        .describe("Visual style of these paths"),
-      sketchId: z.string().optional().describe("If provided, cache the symbol in this sketch"),
-    },
-    async (args) => {
-      try {
-        const result = await createSymbol(state, args as Parameters<typeof createSymbol>[1]);
-        return jsonResult(result);
-      } catch (e) {
-        return toolError(e instanceof Error ? e.message : String(e));
-      }
-    },
-  );
-
-  server.tool(
-    "fetch_symbol",
-    "Search Iconify for professional icons (275k+ from Phosphor, Lucide, Tabler, MDI, etc.) or embed one into a sketch. Two modes: (1) Search — provide query to get a list of iconifyIds; (2) Embed — provide iconifyId (e.g. 'ph:cat') to fetch SVG, parse paths, and embed as a SketchSymbolDef. Approved prefixes: ph, lucide, tabler, heroicons, bi, mdi, ri, carbon, fluent.",
-    {
-      query: z
-        .string()
-        .optional()
-        .describe("Keyword to search Iconify (e.g. 'cat', 'arrow left', 'sun'). Returns a list of iconifyIds — no SVG fetched yet."),
-      iconifyId: z
-        .string()
-        .optional()
-        .describe("Iconify icon ID to embed (e.g. 'ph:cat', 'lucide:arrow-left'). Fetches SVG, parses paths, embeds in sketch."),
-      prefix: z
-        .string()
-        .optional()
-        .describe("Limit search to a specific icon set (e.g. 'ph', 'lucide', 'tabler'). Ignored when using iconifyId."),
-      sketchId: z
-        .string()
-        .optional()
-        .describe("Sketch ID to embed the icon into (embed mode only). If omitted, returns parsed data without saving."),
-      limit: z
-        .number()
-        .optional()
-        .describe("Maximum search results to return (default: 10)"),
-    },
-    async (args) => {
-      try {
-        const result = await fetchSymbol(state, args);
-        return jsonResult(result);
-      } catch (e) {
-        return toolError(e instanceof Error ? e.message : String(e));
-      }
-    },
-  );
-}

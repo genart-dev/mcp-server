@@ -22,9 +22,9 @@
   integrity sha512-Re491k7ByTVRy0t3EKWajdLIr0gz2kKKfzafkth4Q8A5n1xTHrkqZgLLjFEHVD+AXdUGgQMq+Godfq45mGpCKg==
 
 "@genart-dev/components@^0.1.0":
-  version "0.1.0"
-  resolved "https://registry.npmjs.org/@genart-dev/components/-/components-0.1.0.tgz"
-  integrity sha512-UQARaUB/1v4CeYwqS/EGoxZ2adpbZ5QX6u+v3gxWbSEMbGT4nulChAp8kEJMAmUuXpLUL6amQnaYj9nE6RNxrg==
+  version "0.1.1"
+  resolved "https://registry.npmjs.org/@genart-dev/components/-/components-0.1.1.tgz"
+  integrity sha512-VnGckHAcPZlJniXuEVEg+CwfB5nE2wL7X421AQsor79UMmws1HtRkqgzUJzZuBfqtI3pE0dp/Tplfl2oFoX77Q==
   dependencies:
     "@genart-dev/format" "^0.2.0"
 
@@ -32,6 +32,13 @@
   version "0.3.1"
   resolved "https://registry.npmjs.org/@genart-dev/core/-/core-0.3.1.tgz"
   integrity sha512-McUayfN+ZlEbyDVouD0h1zRMxSvpHbQkSO+Jhal+mIfwaOYQzzwYElfbnUsvhv5V1QAnHEpn0TXdrrhPjYKSLA==
+  dependencies:
+    "@genart-dev/components" "^0.1.0"
+    "@genart-dev/format" "^0.3.0"
+
+"@genart-dev/core@file:../core":
+  version "0.4.0"
+  resolved "file:../core"
   dependencies:
     "@genart-dev/components" "^0.1.0"
     "@genart-dev/format" "^0.3.0"
@@ -46,10 +53,59 @@
   resolved "https://registry.npmjs.org/@genart-dev/format/-/format-0.3.0.tgz"
   integrity sha512-j9dlH1qnGJGSz8HB8Fg4s8SDeWbKtX9t5n9pBY4XdQKfz3q7yFJtKUvmVblOwyKRx/WZRhjL5Xt331icruubjA==
 
+"@genart-dev/plugin-animation@^0.1.0":
+  version "0.1.0"
+  resolved "https://registry.npmjs.org/@genart-dev/plugin-animation/-/plugin-animation-0.1.0.tgz"
+  integrity sha512-FZY/TAoh8SkfBuoLZ6LN3zfb5Y+RtJpTZtVQeW/RaDew1bZunRzFOo8hE4xfRe058Fz7qr6MoV8/4Uch1jfv7Q==
+  dependencies:
+    "@genart-dev/core" "^0.3.0"
+
+"@genart-dev/plugin-color-adjust@^0.1.0":
+  version "0.1.0"
+  resolved "https://registry.npmjs.org/@genart-dev/plugin-color-adjust/-/plugin-color-adjust-0.1.0.tgz"
+  integrity sha512-J0DdwnQs4c+7RHSweTOS0lJHGPJF9kNZR3HozJentfD7htJBNJIq6192mJ6XqrDgXmgUkaW630QfGfJbJfSBMQ==
+  dependencies:
+    "@genart-dev/core" "^0.3.0"
+
+"@genart-dev/plugin-compositing@^0.1.0":
+  version "0.1.0"
+  resolved "https://registry.npmjs.org/@genart-dev/plugin-compositing/-/plugin-compositing-0.1.0.tgz"
+  integrity sha512-vaNcZKlENlWxeWTAoFrNIWpWFfV+CgH+5iWpZVgUNuZETcp46/zKxzl01ZslOlKPSBGmz4u7HAjwPc6fn1lEcw==
+  dependencies:
+    "@genart-dev/core" "^0.3.0"
+
+"@genart-dev/plugin-construction@^0.1.0":
+  version "0.1.0"
+  resolved "https://registry.npmjs.org/@genart-dev/plugin-construction/-/plugin-construction-0.1.0.tgz"
+  integrity sha512-IRYIkxTiHTzytoSfxNNmB1MAXG92m5RO3o0nX5zoNprBoe02b/xzNr632qW1DrBYNPQYWG3JaCi/79OMrFl1Bg==
+  dependencies:
+    "@genart-dev/core" "^0.3.0"
+
+"@genart-dev/plugin-distribution@^0.1.0":
+  version "0.1.0"
+  resolved "https://registry.npmjs.org/@genart-dev/plugin-distribution/-/plugin-distribution-0.1.0.tgz"
+  integrity sha512-DO6q4zHzoR3yHwCupOrxfQFfcA173wXZLMvsF94+BwncJF7Zwhn6w9nYY1GWA6pQ1c7TYZgTln3Ju//redlRZA==
+  dependencies:
+    "@genart-dev/core" "^0.3.0"
+
+"@genart-dev/plugin-figure@^0.1.0":
+  version "0.1.0"
+  resolved "https://registry.npmjs.org/@genart-dev/plugin-figure/-/plugin-figure-0.1.0.tgz"
+  integrity sha512-7KVEttnOEHJp9MlhLi8lPpWR6oz9zGbKYAXoiZdOcmg07OkYOAYS7auVWA+P5I9slctkIQXsLgOPS1bmc6fxcA==
+  dependencies:
+    "@genart-dev/core" "^0.3.0"
+
 "@genart-dev/plugin-filters@^0.1.0":
   version "0.1.0"
   resolved "https://registry.npmjs.org/@genart-dev/plugin-filters/-/plugin-filters-0.1.0.tgz"
   integrity sha512-w7LvjIhr/bBZC4h2q80o2i3U1RnN0yR7NeHGGm8KbyuQGQqVocuXFQqCWRcLRRpLlzPOmqIMVGKn3splH2NRpA==
+  dependencies:
+    "@genart-dev/core" "^0.3.0"
+
+"@genart-dev/plugin-layout-composition@^0.1.0":
+  version "0.1.0"
+  resolved "https://registry.npmjs.org/@genart-dev/plugin-layout-composition/-/plugin-layout-composition-0.1.0.tgz"
+  integrity sha512-/Q0nBpRHtPjZRlAse26i1195xLco+72r/LYnwHwlgxMbvq569tiYtLis1dWo0slmAwClGJTi95daCg3cmRwiYw==
   dependencies:
     "@genart-dev/core" "^0.3.0"
 
@@ -67,12 +123,41 @@
     "@genart-dev/core" "^0.3.0"
     canvas "^3.2.1"
 
+"@genart-dev/plugin-perspective@^0.1.0":
+  version "0.1.0"
+  resolved "https://registry.npmjs.org/@genart-dev/plugin-perspective/-/plugin-perspective-0.1.0.tgz"
+  integrity sha512-4qW6PW9rpNYUH0bcw4+9gg4SKV7jmCa64kcLwIB1fsFofVRR1GHt7wwH7D1sHoIWM0sHeuIvJ+K9VNRFYso0oA==
+  dependencies:
+    "@genart-dev/core" "^0.3.0"
+
+"@genart-dev/plugin-poses@^0.1.0":
+  version "0.1.0"
+  resolved "https://registry.npmjs.org/@genart-dev/plugin-poses/-/plugin-poses-0.1.0.tgz"
+  integrity sha512-2ak4wTt75lCEd0QXniz09vf+O8w4spGBJzBMA928Mh4M11dfw+evxv7l+NTqd7hS0WyW3J+2SeeiRq0fLfrDZA==
+  dependencies:
+    "@genart-dev/core" "^0.3.0"
+
 "@genart-dev/plugin-shapes@^0.1.0":
   version "0.1.0"
   resolved "https://registry.npmjs.org/@genart-dev/plugin-shapes/-/plugin-shapes-0.1.0.tgz"
   integrity sha512-UcteKFtjZY4grfZAHBpQ/RI3A8XjpzfzNIxoiOhrehLvTXpvCleCCQgV6KExSQ0A4B7eBCTWOAFhSDVP6o1WXQ==
   dependencies:
     "@genart-dev/core" "^0.3.0"
+
+"@genart-dev/plugin-styles@^0.1.0":
+  version "0.1.0"
+  resolved "https://registry.npmjs.org/@genart-dev/plugin-styles/-/plugin-styles-0.1.0.tgz"
+  integrity sha512-Wx9TmbqPWVwVvGab7AlRSiWHB6QZ5bMkp3oeu5Va8b32hv0UOua3Cn1KY+4IwHOVnjNGgNFFEBwvXZEK9DzIug==
+  dependencies:
+    "@genart-dev/core" "^0.3.0"
+    "@genart-dev/styles" "^0.1.0"
+
+"@genart-dev/plugin-symbols@file:../plugin-symbols":
+  version "0.1.0"
+  resolved "file:../plugin-symbols"
+  dependencies:
+    "@genart-dev/core" "file:../core"
+    "@genart-dev/symbols" "file:../symbols"
 
 "@genart-dev/plugin-textures@^0.1.0":
   version "0.1.2"
@@ -87,6 +172,13 @@
   integrity sha512-h34ZAuVHqZJoGzW6euN8r2rPepGR0ca9V0ai0zyXLAyD1648VeNCsR4/Q9Eq7UBCYlkCKejP/2Vq3clHUHDUkw==
   dependencies:
     "@genart-dev/core" "^0.3.0"
+
+"@genart-dev/styles@^0.1.0":
+  version "0.1.0"
+  resolved "https://registry.npmjs.org/@genart-dev/styles/-/styles-0.1.0.tgz"
+  integrity sha512-g8fOmSs5wzMp8zrypP8kl80Mfb+cGHOe/OtYYiGlljJUcljBVmKe2M6tKODunacasyAE6ZUPoltEzvDYsNoQoQ==
+  dependencies:
+    "@genart-dev/format" "^0.3.0"
 
 "@genart-dev/symbols@file:../symbols":
   version "0.1.0"

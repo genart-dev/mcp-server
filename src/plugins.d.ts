@@ -40,3 +40,69 @@ declare module "@genart-dev/plugin-textures" {
   const plugin: DesignPlugin;
   export default plugin;
 }
+
+declare module "@genart-dev/plugin-animation" {
+  import type { DesignPlugin } from "@genart-dev/core";
+  const plugin: DesignPlugin;
+  export default plugin;
+}
+
+declare module "@genart-dev/plugin-color-adjust" {
+  import type { DesignPlugin } from "@genart-dev/core";
+  const plugin: DesignPlugin;
+  export default plugin;
+}
+
+declare module "@genart-dev/plugin-compositing" {
+  import type { DesignPlugin } from "@genart-dev/core";
+  const plugin: DesignPlugin;
+  export default plugin;
+}
+
+declare module "@genart-dev/plugin-construction" {
+  import type { DesignPlugin } from "@genart-dev/core";
+  const plugin: DesignPlugin;
+  export default plugin;
+}
+
+declare module "@genart-dev/plugin-distribution" {
+  import type { DesignPlugin } from "@genart-dev/core";
+  const plugin: DesignPlugin;
+  export default plugin;
+}
+
+declare module "@genart-dev/plugin-figure" {
+  import type { DesignPlugin } from "@genart-dev/core";
+  const plugin: DesignPlugin;
+  export default plugin;
+}
+
+declare module "@genart-dev/plugin-layout-composition" {
+  import type { DesignPlugin } from "@genart-dev/core";
+  const plugin: DesignPlugin;
+  export default plugin;
+}
+
+declare module "@genart-dev/plugin-perspective" {
+  import type { DesignPlugin } from "@genart-dev/core";
+  const plugin: DesignPlugin;
+  export default plugin;
+}
+
+declare module "@genart-dev/plugin-poses" {
+  import type { DesignPlugin } from "@genart-dev/core";
+  const plugin: DesignPlugin;
+  export default plugin;
+}
+
+declare module "@genart-dev/plugin-styles" {
+  import type { DesignPlugin } from "@genart-dev/core";
+  const plugin: DesignPlugin;
+  export default plugin;
+}
+
+declare module "@genart-dev/plugin-symbols" {
+  import type { DesignPlugin } from "@genart-dev/core";
+  const plugin: DesignPlugin;
+  export default plugin;
+}

@@ -67,9 +67,9 @@ describe("MCP server integration", () => {
   });
 
   describe("capability listing", () => {
-    it("lists all 88 tools (original + 5 symbol + design core + plugin)", async () => {
+    it("lists all registered tools (original + design core + plugins)", async () => {
       const result = await client.listTools();
-      expect(result.tools.length).toBe(88);
+      expect(result.tools.length).toBe(156);
     });
 
     it("includes all workspace tools", async () => {
