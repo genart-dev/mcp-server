@@ -67,6 +67,7 @@ import {
   removeComponent,
 } from "./tools/components.js";
 import { captureScreenshot, captureBatch } from "./tools/capture.js";
+import { critiqueSketch, compareSketches } from "./tools/critique.js";
 import { exportSketch } from "./tools/export.js";
 import {
   designAddLayer,
@@ -175,6 +176,7 @@ export function createServer(state: EditorState): McpServer {
   registerDesignTools(server, state);
 
   registerCaptureTools(server, state);
+  registerCritiqueTools(server, state);
   registerExportTools(server, state);
 
   registerResources(server, state);
@@ -1221,6 +1223,88 @@ function registerCaptureTools(server: McpServer, state: EditorState): void {
           content.push({
             type: "image",
             data: item.inlineJpegBase64,
+            mimeType: "image/jpeg",
+          });
+        }
+        return { content };
+      } catch (e) {
+        return toolError(e instanceof Error ? e.message : String(e));
+      }
+    },
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Critique Tools (Phase 2: Perception & Self-Critique — ADR 053)
+// ---------------------------------------------------------------------------
+
+function registerCritiqueTools(server: McpServer, state: EditorState): void {
+  server.tool(
+    "critique_sketch",
+    "Capture a sketch screenshot and return a structured self-critique framework (questions, principles, pitfalls) per aspect. Severity calibrates to compositionLevel.",
+    {
+      sketchId: z
+        .string()
+        .optional()
+        .describe("Sketch to critique (default: selected sketch)"),
+      aspects: z
+        .array(z.enum(["composition", "color", "rhythm", "unity", "expression"]))
+        .optional()
+        .describe("Aspects to critique (default: all five)"),
+      previewSize: z
+        .number()
+        .optional()
+        .describe("Max dimension for inline preview JPEG (default: 400)"),
+    },
+    async (args) => {
+      try {
+        const result = await critiqueSketch(state, args);
+        return {
+          content: [
+            { type: "text" as const, text: JSON.stringify(result.metadata, null, 2) },
+            { type: "image" as const, data: result.previewJpegBase64, mimeType: "image/jpeg" as const },
+          ],
+        };
+      } catch (e) {
+        return toolError(e instanceof Error ? e.message : String(e));
+      }
+    },
+  );
+
+  server.tool(
+    "compare_sketches",
+    "Side-by-side capture of 2-4 sketches with a structured comparison framework across specified aspects.",
+    {
+      sketchIds: z
+        .array(z.string())
+        .describe("IDs of 2-4 sketches to compare"),
+      aspects: z
+        .array(z.enum(["composition", "color", "rhythm", "unity", "expression"]))
+        .optional()
+        .describe("Aspects to compare (default: all five)"),
+      previewSize: z
+        .number()
+        .optional()
+        .describe("Max dimension for inline preview JPEGs (default: 300)"),
+    },
+    async (args) => {
+      try {
+        const result = await compareSketches(state, args);
+        const content: Array<
+          | { type: "text"; text: string }
+          | { type: "image"; data: string; mimeType: "image/jpeg" }
+        > = [
+          { type: "text", text: JSON.stringify(result.metadata, null, 2) },
+        ];
+        // Add per-sketch images interleaved for easy visual comparison
+        for (const preview of result.previews) {
+          content.push({
+            type: "text",
+            text: `--- Sketch: ${preview.sketchId} ---`,
+          });
+          content.push({
+            type: "image",
+            data: preview.inlineJpegBase64,
             mimeType: "image/jpeg",
           });
         }

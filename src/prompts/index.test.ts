@@ -35,13 +35,14 @@ describe("MCP prompts", () => {
   });
 
   describe("listPrompts", () => {
-    it("lists all 3 registered prompts", async () => {
+    it("lists all 4 registered prompts", async () => {
       const result = await client.listPrompts();
       const names = result.prompts.map((p) => p.name);
       expect(names).toContain("create-generative-art");
       expect(names).toContain("explore-variations");
       expect(names).toContain("apply-design-theory");
-      expect(result.prompts.length).toBe(3);
+      expect(names).toContain("critique-and-iterate");
+      expect(result.prompts.length).toBe(4);
     });
 
     it("includes descriptions for all prompts", async () => {

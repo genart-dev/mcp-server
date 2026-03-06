@@ -15,6 +15,7 @@ export function registerPrompts(
   registerCreateGenerativeArt(server);
   registerExploreVariations(server, state);
   registerApplyDesignTheory(server, state);
+  registerCritiqueAndIterate(server, state);
 }
 
 // ---------------------------------------------------------------------------
@@ -374,6 +375,121 @@ function registerApplyDesignTheory(
                 `6. Update the philosophy field to document the design rationale`,
                 ``,
                 `**Attribution:** Always pass your \`agent\` name and \`model\` identifier when calling tools that create or modify sketches.`,
+              ].join("\n"),
+            },
+          },
+        ],
+      };
+    },
+  );
+}
+
+// ---------------------------------------------------------------------------
+// critique-and-iterate — capture → self-critique → improve → compare → document
+// ---------------------------------------------------------------------------
+
+function registerCritiqueAndIterate(
+  server: McpServer,
+  state: EditorState,
+): void {
+  server.prompt(
+    "critique-and-iterate",
+    "Capture a sketch, self-critique it, identify improvements, fork, apply changes, compare, and document the iteration",
+    {
+      sketchId: z
+        .string()
+        .describe("ID of the sketch to critique and iterate on"),
+      aspects: z
+        .string()
+        .optional()
+        .describe("Comma-separated aspects to focus on (composition, color, rhythm, unity, expression). Default: all"),
+      iterations: z
+        .string()
+        .optional()
+        .describe("Number of improvement iterations (default: 1)"),
+    },
+    async (args) => {
+      const sketch = state.getSketch(args.sketchId);
+      const iterations = args.iterations ? parseInt(args.iterations, 10) : 1;
+      const aspectList = args.aspects
+        ? args.aspects.split(",").map((a) => a.trim())
+        : ["composition", "color", "rhythm", "unity", "expression"];
+
+      let sketchContext = "";
+      if (sketch) {
+        const def = sketch.definition;
+        sketchContext = [
+          `## Current Sketch: "${def.title}"`,
+          `- **ID:** ${def.id}`,
+          `- **Renderer:** ${def.renderer.type}`,
+          `- **Canvas:** ${def.canvas.width}×${def.canvas.height}`,
+          `- **Composition Level:** ${def.compositionLevel ?? "sketch"}`,
+          def.philosophy
+            ? `- **Philosophy:** ${def.philosophy}`
+            : `- **Philosophy:** not set`,
+          `- **Parameters:** ${def.parameters?.length ?? 0} defined`,
+          `- **Colors:** ${def.colors?.length ?? 0} defined`,
+        ].join("\n");
+      } else {
+        sketchContext = `## Sketch: ${args.sketchId}\n*(Not currently loaded — use open_sketch first)*`;
+      }
+
+      return {
+        messages: [
+          {
+            role: "user" as const,
+            content: {
+              type: "text" as const,
+              text: [
+                `Perform a structured critique-and-iterate cycle on a generative art sketch.`,
+                ``,
+                sketchContext,
+                ``,
+                `## Focus Aspects`,
+                aspectList.map((a) => `- ${a}`).join("\n"),
+                ``,
+                `## Iterations: ${iterations}`,
+                ``,
+                `## Process`,
+                ``,
+                `For each iteration:`,
+                ``,
+                `### Step 1: Capture & Critique`,
+                `1. Use \`critique_sketch\` with sketchId="${args.sketchId}" and aspects=[${aspectList.map((a) => `"${a}"`).join(", ")}]`,
+                `2. Study the returned screenshot carefully`,
+                `3. Answer each framework question honestly — what works and what doesn't`,
+                `4. Note the severity calibration for this composition level`,
+                ``,
+                `### Step 2: Identify Improvements`,
+                `Based on the critique, identify 2-3 specific, actionable improvements:`,
+                `- Rank them by expected visual impact`,
+                `- Be precise: "shift the focal cluster from center to upper-left third" not "improve composition"`,
+                `- Consider which improvements can be achieved via parameter changes vs algorithm changes`,
+                ``,
+                `### Step 3: Fork & Apply`,
+                `1. Use \`fork_sketch\` to create a new version (preserve the original for comparison)`,
+                `2. Apply the identified improvements:`,
+                `   - Use \`set_parameters\` or \`set_colors\` for parameter-level changes`,
+                `   - Use \`update_algorithm\` for algorithmic changes`,
+                `3. Use \`capture_screenshot\` to verify each change visually`,
+                ``,
+                `### Step 4: Compare`,
+                `1. Use \`compare_sketches\` with the original and improved sketch IDs`,
+                `2. Evaluate: did each intended improvement actually improve the piece?`,
+                `3. Note any unintended consequences — improvements in one aspect sometimes degrade another`,
+                ``,
+                `### Step 5: Document`,
+                `After all iterations:`,
+                `1. Update the improved sketch's philosophy field to document what changed and why`,
+                `2. Summarize the iteration journey: what was tried, what worked, what was learned`,
+                `3. If the original was better in some aspects, note what to preserve in future iterations`,
+                ``,
+                `## Guidelines`,
+                `- Be your own harshest (but fairest) critic — the goal is genuine improvement`,
+                `- Small, focused changes are better than sweeping rewrites`,
+                `- If a change doesn't work, revert it before trying the next improvement`,
+                `- The final piece should feel like a natural evolution, not a different sketch`,
+                `- Always pass your \`agent\` name and \`model\` identifier when calling tools that create or modify sketches`,
               ].join("\n"),
             },
           },
