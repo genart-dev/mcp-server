@@ -6,8 +6,8 @@ describe("knowledge tools", () => {
     it("returns all skills when no category filter", async () => {
       const result = await listSkills({});
       expect(result.success).toBe(true);
-      expect(result.total).toBe(12);
-      expect(result.skills).toHaveLength(12);
+      expect(result.total).toBe(24);
+      expect(result.skills).toHaveLength(24);
     });
 
     it("filters by composition category", async () => {

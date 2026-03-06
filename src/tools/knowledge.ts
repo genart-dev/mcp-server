@@ -1,9 +1,10 @@
 /**
  * Design knowledge tools.
- * list_skills, load_skill, get_guidelines
+ * list_skills, load_skill, get_guidelines, suggest_skills
  */
 
 import { createDefaultSkillRegistry } from "@genart-dev/core";
+import type { EditorState } from "../state.js";
 
 const registry = createDefaultSkillRegistry();
 
@@ -150,6 +151,11 @@ export async function getGuidelines(
     illustration: "illustration",
     "mixed-media": "illustration",
     "mixed media": "illustration",
+    process: "process",
+    layering: "process",
+    "mark-making": "process",
+    refinement: "process",
+    constraints: "process",
   };
 
   const category = categoryMap[topic];
@@ -157,7 +163,7 @@ export async function getGuidelines(
     return {
       success: false,
       topic,
-      error: `No guidelines found for topic: '${topic}'. Available topics: composition, color, painting, illustration, parameters, animation, performance`,
+      error: `No guidelines found for topic: '${topic}'. Available topics: composition, color, painting, illustration, process, parameters, animation, performance`,
       guidelines: null,
       relatedSkills: [],
     };
@@ -180,5 +186,173 @@ export async function getGuidelines(
       name: s.name,
       complexity: s.complexity,
     })),
+  };
+}
+
+// ---------------------------------------------------------------------------
+// suggest_skills
+// ---------------------------------------------------------------------------
+
+export interface SuggestSkillsInput {
+  sketchId?: string;
+  context?: string;
+}
+
+/** Keyword-to-skill relevance mapping for context-based suggestions. */
+const CONTEXT_KEYWORDS: Record<string, readonly string[]> = {
+  // Composition keywords
+  layout: ["golden-ratio", "rule-of-thirds", "visual-weight", "gestalt-grouping"],
+  balance: ["visual-weight", "golden-ratio", "rule-of-thirds"],
+  grid: ["rule-of-thirds", "gestalt-grouping", "rhythm-movement"],
+  flow: ["rhythm-movement", "gestalt-grouping"],
+  movement: ["rhythm-movement", "mark-making"],
+  rhythm: ["rhythm-movement", "mark-making"],
+  focal: ["rule-of-thirds", "visual-weight", "figure-ground"],
+  negative: ["figure-ground", "visual-weight"],
+  space: ["figure-ground", "visual-weight", "atmospheric-depth"],
+  // Color keywords
+  palette: ["color-harmony", "palette-generation", "color-mixing-strategy"],
+  color: ["color-harmony", "color-temperature", "itten-contrasts", "color-mixing-strategy"],
+  warm: ["color-temperature", "atmospheric-depth"],
+  cool: ["color-temperature", "atmospheric-depth"],
+  contrast: ["simultaneous-contrast", "itten-contrasts", "value-structure"],
+  value: ["value-structure", "itten-contrasts", "layering-strategy"],
+  gray: ["color-mixing-strategy", "value-structure"],
+  // Painting keywords
+  watercolor: ["watercolor-techniques", "layering-strategy", "material-behavior"],
+  ink: ["ink-illustration", "mark-making", "material-behavior"],
+  oil: ["painting-foundations", "layering-strategy", "material-behavior"],
+  charcoal: ["material-behavior", "mark-making"],
+  brush: ["mark-making", "material-behavior"],
+  layer: ["layering-strategy", "mixed-media-workflow", "iterative-refinement"],
+  texture: ["material-behavior", "mark-making"],
+  // Process keywords
+  study: ["thumbnail-studies", "creative-constraints", "iterative-refinement"],
+  thumbnail: ["thumbnail-studies", "creative-constraints"],
+  refine: ["iterative-refinement", "layering-strategy"],
+  iterate: ["iterative-refinement", "thumbnail-studies"],
+  depth: ["atmospheric-depth", "color-temperature", "value-structure"],
+  atmosphere: ["atmospheric-depth", "color-temperature"],
+  perspective: ["atmospheric-depth"],
+  constraint: ["creative-constraints"],
+  limit: ["creative-constraints", "color-mixing-strategy"],
+  hatch: ["mark-making", "ink-illustration"],
+  stipple: ["mark-making"],
+  gestural: ["mark-making", "iterative-refinement"],
+  mix: ["color-mixing-strategy", "mixed-media-workflow"],
+  glaze: ["layering-strategy", "material-behavior"],
+};
+
+export async function suggestSkills(
+  state: EditorState,
+  input: SuggestSkillsInput,
+): Promise<Record<string, unknown>> {
+  const allSkills = registry.list();
+  const scored = new Map<string, { score: number; reasons: string[] }>();
+
+  // Initialize all skills with base score
+  for (const skill of allSkills) {
+    scored.set(skill.id, { score: 0, reasons: [] });
+  }
+
+  // Score based on sketch context if a sketch is provided
+  if (input.sketchId) {
+    const loaded = state.getSketch(input.sketchId);
+    if (loaded) {
+      const sketch = loaded.definition;
+
+      // Boost skills not already used by the sketch
+      const usedSkills = new Set(sketch.skills ?? []);
+      for (const skill of allSkills) {
+        if (!usedSkills.has(skill.id)) {
+          const entry = scored.get(skill.id)!;
+          entry.score += 1;
+          entry.reasons.push("not yet used in this sketch");
+        }
+      }
+
+      // Boost process skills based on compositionLevel
+      const level = sketch.compositionLevel;
+      if (level) {
+        const levelSkills: Record<string, string[]> = {
+          study: ["thumbnail-studies", "creative-constraints", "iterative-refinement"],
+          sketch: ["iterative-refinement", "mark-making", "layering-strategy", "color-mixing-strategy"],
+          developed: ["layering-strategy", "material-behavior", "atmospheric-depth", "color-mixing-strategy"],
+          exhibition: ["layering-strategy", "material-behavior", "atmospheric-depth", "iterative-refinement", "mark-making"],
+        };
+        for (const id of levelSkills[level] ?? []) {
+          const entry = scored.get(id);
+          if (entry) {
+            entry.score += 3;
+            entry.reasons.push(`recommended for ${level}-level work`);
+          }
+        }
+      }
+
+      // Boost based on existing layers (painting-related skills)
+      if (sketch.layers && sketch.layers.length > 0) {
+        const layerTypes = sketch.layers.map((l) => l.type);
+        if (layerTypes.some((t) => t.startsWith("painting:"))) {
+          for (const id of ["layering-strategy", "material-behavior", "iterative-refinement"]) {
+            const entry = scored.get(id);
+            if (entry) {
+              entry.score += 2;
+              entry.reasons.push("sketch uses painting layers");
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // Score based on free-text context
+  if (input.context) {
+    const words = input.context.toLowerCase().split(/\W+/);
+    for (const word of words) {
+      const matched = CONTEXT_KEYWORDS[word];
+      if (matched) {
+        for (const skillId of matched) {
+          const entry = scored.get(skillId);
+          if (entry) {
+            entry.score += 2;
+            if (!entry.reasons.includes(`matches context keyword "${word}"`)) {
+              entry.reasons.push(`matches context keyword "${word}"`);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // If no context clues at all, boost process skills as general recommendations
+  if (!input.sketchId && !input.context) {
+    for (const skill of allSkills) {
+      if (skill.category === "process") {
+        const entry = scored.get(skill.id)!;
+        entry.score += 2;
+        entry.reasons.push("process knowledge is broadly applicable");
+      }
+    }
+  }
+
+  // Sort by score descending, take top 5
+  const ranked = allSkills
+    .map((skill) => ({
+      id: skill.id,
+      name: skill.name,
+      category: skill.category,
+      complexity: skill.complexity,
+      description: skill.description,
+      relevanceScore: scored.get(skill.id)!.score,
+      rationale: scored.get(skill.id)!.reasons,
+    }))
+    .filter((s) => s.relevanceScore > 0)
+    .sort((a, b) => b.relevanceScore - a.relevanceScore)
+    .slice(0, 5);
+
+  return {
+    success: true,
+    suggestions: ranked,
+    total: ranked.length,
   };
 }

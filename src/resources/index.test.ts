@@ -61,8 +61,8 @@ describe("MCP resources", () => {
       expect(result.contents[0].mimeType).toBe("application/json");
       const data = JSON.parse(result.contents[0].text as string);
       expect(data.skills).toBeInstanceOf(Array);
-      expect(data.total).toBe(12);
-      expect(data.categories).toEqual(["color", "composition"]);
+      expect(data.total).toBe(24);
+      expect(data.categories).toEqual(["color", "composition", "illustration", "painting", "process"]);
       // Each skill has required summary fields
       for (const skill of data.skills) {
         expect(skill.id).toBeTruthy();

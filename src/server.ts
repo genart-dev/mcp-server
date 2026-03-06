@@ -60,7 +60,7 @@ import {
 import { listSketches, searchSketches } from "./tools/gallery.js";
 import { mergeSketches } from "./tools/merge.js";
 import { snapshotLayout } from "./tools/snapshot-layout.js";
-import { listSkills, loadSkill, getGuidelines } from "./tools/knowledge.js";
+import { listSkills, loadSkill, getGuidelines, suggestSkills } from "./tools/knowledge.js";
 import {
   listComponents,
   addComponent,
@@ -1571,7 +1571,7 @@ function registerDesignTools(server: McpServer, state: EditorState): void {
 // Knowledge Tools (Phase 5 stubs)
 // ---------------------------------------------------------------------------
 
-function registerKnowledgeTools(server: McpServer, _state: EditorState): void {
+function registerKnowledgeTools(server: McpServer, state: EditorState): void {
   server.tool(
     "list_skills",
     "List all available design knowledge skills (Phase 5)",
@@ -1616,7 +1616,7 @@ function registerKnowledgeTools(server: McpServer, _state: EditorState): void {
     "Return design guidelines and best practices for a topic (Phase 5)",
     {
       topic: z
-        .enum(["composition", "color", "parameters", "animation", "performance"])
+        .enum(["composition", "color", "process", "painting", "illustration", "parameters", "animation", "performance"])
         .describe("Guideline topic"),
       renderer: z
         .enum(["p5", "three", "glsl", "canvas2d", "svg"])
@@ -1626,6 +1626,29 @@ function registerKnowledgeTools(server: McpServer, _state: EditorState): void {
     async (args) => {
       try {
         const result = await getGuidelines(args);
+        return jsonResult(result);
+      } catch (e) {
+        return toolError(e instanceof Error ? e.message : String(e));
+      }
+    },
+  );
+
+  server.tool(
+    "suggest_skills",
+    "Recommend relevant design skills based on sketch context and/or free-text description",
+    {
+      sketchId: z
+        .string()
+        .optional()
+        .describe("ID of a loaded sketch to analyze for skill recommendations"),
+      context: z
+        .string()
+        .optional()
+        .describe("Free-text description of what you're working on (e.g., 'atmospheric landscape with watercolor')"),
+    },
+    async (args) => {
+      try {
+        const result = await suggestSkills(state, args);
         return jsonResult(result);
       } catch (e) {
         return toolError(e instanceof Error ? e.message : String(e));
