@@ -68,6 +68,12 @@ import {
 } from "./tools/components.js";
 import { captureScreenshot, captureBatch } from "./tools/capture.js";
 import { critiqueSketch, compareSketches } from "./tools/critique.js";
+import {
+  createSeries,
+  developConcept,
+  seriesSummary,
+  promoteSketch,
+} from "./tools/series.js";
 import { exportSketch } from "./tools/export.js";
 import {
   designAddLayer,
@@ -177,6 +183,7 @@ export function createServer(state: EditorState): McpServer {
 
   registerCaptureTools(server, state);
   registerCritiqueTools(server, state);
+  registerSeriesTools(server, state);
   registerExportTools(server, state);
 
   registerResources(server, state);
@@ -1309,6 +1316,148 @@ function registerCritiqueTools(server: McpServer, state: EditorState): void {
           });
         }
         return { content };
+      } catch (e) {
+        return toolError(e instanceof Error ? e.message : String(e));
+      }
+    },
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Series & Conceptual Development Tools (Phase 3)
+// ---------------------------------------------------------------------------
+
+function registerSeriesTools(server: McpServer, state: EditorState): void {
+  server.tool(
+    "create_series",
+    "Create a new curated series of sketches with narrative, intent, and studio workflow stages",
+    {
+      label: z.string().describe("Display label for the series"),
+      narrative: z
+        .string()
+        .describe("Prose narrative describing the artistic exploration"),
+      intent: z.string().describe("Short statement of artistic intent"),
+      progression: z
+        .string()
+        .optional()
+        .describe(
+          "Series progression type (e.g. 'linear', 'branching', 'iterative')",
+        ),
+      stages: z
+        .array(z.enum(["studies", "drafts", "refinements", "finals"]))
+        .optional()
+        .describe(
+          "Ordered stages in the studio workflow (default: all four)",
+        ),
+      sketchFiles: z
+        .array(z.string())
+        .optional()
+        .describe("File names of existing sketches to include"),
+    },
+    async (args) => {
+      try {
+        const result = await createSeries(state, args);
+        return jsonResult(result);
+      } catch (e) {
+        return toolError(e instanceof Error ? e.message : String(e));
+      }
+    },
+  );
+
+  server.tool(
+    "develop_concept",
+    "Generate a structured concept development plan with mood, palette, composition, skills, and series structure recommendations",
+    {
+      concept: z
+        .string()
+        .describe("The artistic concept or theme to develop"),
+      medium: z
+        .enum(["p5", "three", "glsl", "canvas2d", "svg"])
+        .optional()
+        .describe("Preferred renderer/medium (default: p5)"),
+    },
+    async (args) => {
+      try {
+        const result = await developConcept(state, args);
+        return jsonResult(result);
+      } catch (e) {
+        return toolError(e instanceof Error ? e.message : String(e));
+      }
+    },
+  );
+
+  server.tool(
+    "series_summary",
+    "Capture all sketches in a series with narrative context for holistic evaluation",
+    {
+      seriesId: z.string().describe("ID of the series to summarize"),
+      captureScreenshots: z
+        .boolean()
+        .optional()
+        .describe("Capture screenshots of each sketch (default: true)"),
+      previewSize: z
+        .number()
+        .optional()
+        .describe("Preview image size in pixels (default: 300)"),
+    },
+    async (args) => {
+      try {
+        const result = await seriesSummary(state, args);
+        // Return text metadata + inline image previews
+        const content: Array<{ type: "text"; text: string } | { type: "image"; data: string; mimeType: string }> = [
+          { type: "text" as const, text: JSON.stringify(result.metadata, null, 2) },
+        ];
+        if (result.previews) {
+          for (const preview of result.previews) {
+            content.push({
+              type: "image" as const,
+              data: preview.inlineJpegBase64,
+              mimeType: "image/jpeg",
+            });
+          }
+        }
+        return { content };
+      } catch (e) {
+        return toolError(e instanceof Error ? e.message : String(e));
+      }
+    },
+  );
+
+  server.tool(
+    "promote_sketch",
+    "Promote a sketch to the next studio workflow stage — fork, upscale canvas, update compositionLevel, and add to series",
+    {
+      sketchId: z.string().describe("ID of the sketch to promote"),
+      toStage: z
+        .enum(["studies", "drafts", "refinements", "finals"])
+        .describe("Target stage to promote to"),
+      seriesId: z
+        .string()
+        .optional()
+        .describe("Series to add the promoted sketch to"),
+      newId: z
+        .string()
+        .optional()
+        .describe(
+          "URL-safe kebab-case ID for the promoted sketch (default: auto-generated)",
+        ),
+      title: z
+        .string()
+        .optional()
+        .describe("Title for the promoted sketch (default: auto-generated)"),
+      agent: z
+        .string()
+        .optional()
+        .describe("CLI agent name"),
+      model: z
+        .string()
+        .optional()
+        .describe("AI model identifier"),
+    },
+    async (args) => {
+      try {
+        const result = await promoteSketch(state, args);
+        return jsonResult(result);
       } catch (e) {
         return toolError(e instanceof Error ? e.message : String(e));
       }

@@ -224,6 +224,15 @@ export async function mergeSketches(
   }
   const colorPalette = colors.map((c) => c.default);
 
+  // Build lineage with blend sources
+  const maxGeneration = Math.max(
+    ...sources.map((s) => s.lineage?.generation ?? 1),
+  );
+  const lineage = {
+    blendSources: input.sourceIds,
+    generation: maxGeneration + 1,
+  };
+
   const timestamp = now();
   const newDef: SketchDefinition = {
     genart: "1.1",
@@ -232,6 +241,7 @@ export async function mergeSketches(
     created: timestamp,
     modified: timestamp,
     ...(skills.length > 0 ? { skills } : {}),
+    lineage,
     renderer: { type: renderer, version: sources[0]!.renderer.version },
     canvas: { width: canvasWidth, height: canvasHeight },
     ...(philosophy ? { philosophy } : {}),

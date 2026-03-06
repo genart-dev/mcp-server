@@ -698,6 +698,14 @@ export async function forkSketch(
   const title = input.title ?? `${sourceDef.title} (fork)`;
   const ts = now();
 
+  // Build lineage from parent
+  const sourceGeneration = sourceDef.lineage?.generation ?? 1;
+  const lineage = {
+    parentId: input.sourceId,
+    parentTitle: sourceDef.title,
+    generation: sourceGeneration + 1,
+  };
+
   const forkedDef: SketchDefinition = {
     genart: "1.1",
     id: input.newId,
@@ -710,6 +718,8 @@ export async function forkSketch(
     colors,
     state: buildState(parameters, colors, seed),
     algorithm,
+    ...(sourceDef.compositionLevel ? { compositionLevel: sourceDef.compositionLevel } : {}),
+    lineage,
     ...(philosophy ? { philosophy } : {}),
     ...(sourceDef.themes ? { themes: [...sourceDef.themes] } : {}),
     ...(sourceDef.skills ? { skills: [...sourceDef.skills] } : {}),

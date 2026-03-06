@@ -16,6 +16,7 @@ export function registerPrompts(
   registerExploreVariations(server, state);
   registerApplyDesignTheory(server, state);
   registerCritiqueAndIterate(server, state);
+  registerDevelopArtisticConcept(server, state);
 }
 
 // ---------------------------------------------------------------------------
@@ -490,6 +491,108 @@ function registerCritiqueAndIterate(
                 `- If a change doesn't work, revert it before trying the next improvement`,
                 `- The final piece should feel like a natural evolution, not a different sketch`,
                 `- Always pass your \`agent\` name and \`model\` identifier when calling tools that create or modify sketches`,
+              ].join("\n"),
+            },
+          },
+        ],
+      };
+    },
+  );
+}
+
+// ---------------------------------------------------------------------------
+// develop-artistic-concept — concept → study → thumbnails → develop → critique → iterate → document
+// ---------------------------------------------------------------------------
+
+function registerDevelopArtisticConcept(
+  server: McpServer,
+  _state: EditorState,
+): void {
+  server.prompt(
+    "develop-artistic-concept",
+    "Develop an artistic concept through a full studio workflow: concept planning, studies, development, critique, iteration, and documentation",
+    {
+      concept: z
+        .string()
+        .describe("The artistic concept or theme to explore"),
+      medium: z
+        .enum(["p5", "three", "glsl", "canvas2d", "svg"])
+        .optional()
+        .describe("Preferred renderer/medium (default: p5)"),
+      depth: z
+        .enum(["quick", "standard", "deep"])
+        .optional()
+        .describe("How deeply to explore: quick (3 studies), standard (6 studies), deep (9+ studies). Default: standard"),
+    },
+    async (args) => {
+      const medium = args.medium ?? "p5";
+      const depth = args.depth ?? "standard";
+      const studyCount = depth === "quick" ? 3 : depth === "deep" ? 9 : 6;
+
+      return {
+        messages: [
+          {
+            role: "user" as const,
+            content: {
+              type: "text" as const,
+              text: [
+                `Develop the following artistic concept through a full studio workflow.`,
+                ``,
+                `## Concept`,
+                `${args.concept}`,
+                ``,
+                `## Medium: ${medium}`,
+                `## Depth: ${depth} (${studyCount} studies)`,
+                ``,
+                `## Phase 1: Conceptual Planning`,
+                `1. Use \`develop_concept\` with your concept and medium to get a structured plan`,
+                `2. Define: mood, color strategy, compositional approach, and relevant skills`,
+                `3. Create a series with \`create_series\` — write a narrative and intent statement`,
+                ``,
+                `## Phase 2: Thumbnail Studies`,
+                `1. Create ${studyCount} quick study-level sketches with \`create_sketch\` (compositionLevel: "study")`,
+                `2. Each study should explore a different aspect of the concept:`,
+                `   - Vary composition (centered vs asymmetric vs edge-driven)`,
+                `   - Vary color (warm vs cool, saturated vs muted)`,
+                `   - Vary rhythm (regular vs progressive vs chaotic)`,
+                `   - Vary density (sparse vs dense vs gradient)`,
+                `3. Use small canvases (600x600 or similar) — studies are fast explorations`,
+                `4. Use \`capture_batch\` to see all studies at once`,
+                ``,
+                `## Phase 3: Selection & Critique`,
+                `1. Use \`series_summary\` to see the full set of studies with screenshots`,
+                `2. Use \`critique_sketch\` on the 2-3 most promising studies`,
+                `3. Identify which studies best capture the concept's intent`,
+                `4. Note what works in each — composition choices, color relationships, rhythmic qualities`,
+                ``,
+                `## Phase 4: Development`,
+                `1. Use \`promote_sketch\` to advance the best 1-2 studies to "drafts" stage`,
+                `2. Refine the promoted sketches:`,
+                `   - Add more parameters for fine control`,
+                `   - Develop the color palette with more nuance`,
+                `   - Strengthen compositional structure`,
+                `   - Load relevant skills with \`load_skill\` for guidance`,
+                `3. Use \`critique_sketch\` after each round of changes`,
+                ``,
+                `## Phase 5: Critique & Iteration`,
+                `1. Use \`compare_sketches\` to evaluate drafts against each other`,
+                `2. For the strongest draft, use the critique-and-iterate workflow:`,
+                `   - Critique → identify improvements → fork → apply → compare`,
+                `3. Promote the best iteration to "refinements" stage`,
+                `4. Continue refining until the piece feels resolved`,
+                ``,
+                `## Phase 6: Final & Documentation`,
+                `1. Promote the best refinement to "finals" stage (canvas will upscale)`,
+                `2. Update the philosophy field with the full artistic statement`,
+                `3. Use \`series_summary\` to capture the complete progression`,
+                `4. Document: what was the concept? How did it evolve? What was discovered?`,
+                ``,
+                `## Guidelines`,
+                `- Each phase should feel like a natural progression, not a checklist`,
+                `- Trust the studies — let unexpected results redirect the exploration`,
+                `- The final piece should feel inevitable, like it couldn't have been any other way`,
+                `- Always pass your \`agent\` name and \`model\` identifier when calling tools`,
+                `- Use \`auto_arrange\` periodically to keep the workspace organized`,
               ].join("\n"),
             },
           },
