@@ -23,6 +23,7 @@ import perspectivePlugin from "@genart-dev/plugin-perspective";
 import posesPlugin from "@genart-dev/plugin-poses";
 import stylesPlugin from "@genart-dev/plugin-styles";
 import symbolsPlugin from "@genart-dev/plugin-symbols";
+import tracePlugin from "@genart-dev/plugin-trace";
 import { EditorState } from "./state.js";
 import {
   createWorkspace,
@@ -143,6 +144,7 @@ async function initializePluginRegistry(): Promise<PluginRegistry> {
   await registry.register(posesPlugin);
   await registry.register(stylesPlugin);
   await registry.register(symbolsPlugin);
+  await registry.register(tracePlugin);
 
   return registry;
 }
@@ -152,7 +154,7 @@ export function createServer(state: EditorState): McpServer {
   const server = new McpServer(
     {
       name: "@genart/mcp-server",
-      version: "0.3.0",
+      version: "0.4.0",
     },
     {
       capabilities: {

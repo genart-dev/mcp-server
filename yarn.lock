@@ -172,6 +172,12 @@
     "@genart-dev/core" "^0.3.0"
     canvas "^3.2.1"
 
+"@genart-dev/plugin-trace@file:../plugin-trace":
+  version "0.1.0"
+  resolved "file:../plugin-trace"
+  dependencies:
+    "@genart-dev/core" "^0.6.0"
+
 "@genart-dev/plugin-typography@^0.1.0":
   version "0.1.0"
   resolved "https://registry.npmjs.org/@genart-dev/plugin-typography/-/plugin-typography-0.1.0.tgz"
