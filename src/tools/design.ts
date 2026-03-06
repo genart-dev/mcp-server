@@ -196,16 +196,8 @@ export async function designUpdateLayer(
     stack.updateProperties(args.layerId, updates);
   }
 
-  // Name is a layer-level field, not a property — handle via direct mutation
   if (args.name !== undefined) {
-    const current = stack.get(args.layerId)!;
-    // Re-add with updated name by updating properties (triggers onChange)
-    // LayerStackAccessor doesn't have a setName, so we update via the stack internals
-    // For now, use updateProperties which triggers onChange and sync
-    stack.updateProperties(args.layerId, { ...current.properties });
-    // The name field needs direct mutation on the mutable layer
-    const mutableLayer = stack.get(args.layerId) as { name: string };
-    mutableLayer.name = args.name;
+    stack.updateMeta(args.layerId, { name: args.name });
   }
 
   await state.saveSketch(sketchId);
@@ -357,11 +349,7 @@ export async function designToggleVisibility(
   }
 
   const newVisible = args.visible ?? !layer.visible;
-  // Use the mutable layer reference to toggle visibility
-  const mutableLayer = layer as { visible: boolean };
-  mutableLayer.visible = newVisible;
-  // Trigger onChange by doing a no-op property update
-  stack.updateProperties(args.layerId, { ...layer.properties });
+  stack.updateMeta(args.layerId, { visible: newVisible });
   await state.saveSketch(sketchId);
 
   return {
@@ -384,9 +372,7 @@ export async function designLockLayer(
   }
 
   const newLocked = args.locked ?? !layer.locked;
-  const mutableLayer = layer as { locked: boolean };
-  mutableLayer.locked = newLocked;
-  stack.updateProperties(args.layerId, { ...layer.properties });
+  stack.updateMeta(args.layerId, { locked: newLocked });
   await state.saveSketch(sketchId);
 
   return {
