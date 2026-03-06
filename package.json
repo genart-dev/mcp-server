@@ -63,7 +63,7 @@
     "prepublishOnly": "pnpm build"
   },
   "dependencies": {
-    "@genart-dev/core": "^0.5.0",
+    "@genart-dev/core": "^0.6.0",
     "@genart-dev/plugin-animation": "^0.1.0",
     "@genart-dev/plugin-color-adjust": "^0.1.0",
     "@genart-dev/plugin-compositing": "^0.1.0",

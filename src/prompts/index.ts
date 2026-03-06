@@ -17,6 +17,7 @@ export function registerPrompts(
   registerApplyDesignTheory(server, state);
   registerCritiqueAndIterate(server, state);
   registerDevelopArtisticConcept(server, state);
+  registerStudyReference(server, state);
 }
 
 // ---------------------------------------------------------------------------
@@ -594,6 +595,108 @@ function registerDevelopArtisticConcept(
                 `- Always pass your \`agent\` name and \`model\` identifier when calling tools`,
                 `- Use \`auto_arrange\` periodically to keep the workspace organized`,
               ].join("\n"),
+            },
+          },
+        ],
+      };
+    },
+  );
+}
+
+// ---------------------------------------------------------------------------
+// study-reference — analyze → identify key qualities → create study → document
+// ---------------------------------------------------------------------------
+
+function registerStudyReference(
+  server: McpServer,
+  _state: EditorState,
+): void {
+  server.prompt(
+    "study-reference",
+    "Study a reference image: analyze it, identify key qualities, create a generative study sketch inspired by it, and document learnings",
+    {
+      referenceId: z
+        .string()
+        .describe("ID of the reference to study"),
+      seriesId: z
+        .string()
+        .optional()
+        .describe("Series the reference belongs to (also where the study sketch will be added)"),
+      sketchId: z
+        .string()
+        .optional()
+        .describe("Sketch the reference belongs to"),
+      medium: z
+        .enum(["p5", "three", "glsl", "canvas2d", "svg"])
+        .optional()
+        .describe("Renderer for the study sketch (default: p5)"),
+      focus: z
+        .string()
+        .optional()
+        .describe("Specific quality to focus on: composition, palette, rhythm, mood, technique, or a custom focus"),
+    },
+    async (args) => {
+      const medium = args.medium ?? "p5";
+      const focus = args.focus ?? "all key qualities";
+
+      return {
+        messages: [
+          {
+            role: "user" as const,
+            content: {
+              type: "text" as const,
+              text: [
+                `Study a reference image and create a generative art sketch inspired by it.`,
+                ``,
+                `## Reference: ${args.referenceId}`,
+                args.seriesId ? `## Series: ${args.seriesId}` : "",
+                `## Medium: ${medium}`,
+                `## Focus: ${focus}`,
+                ``,
+                `## Phase 1: Analyze the Reference`,
+                `1. Use \`analyze_reference\` with referenceId="${args.referenceId}"${args.seriesId ? ` seriesId="${args.seriesId}"` : ""}${args.sketchId ? ` sketchId="${args.sketchId}"` : ""} to get the analysis framework and image`,
+                `2. Study the image carefully using the framework prompts`,
+                `3. Answer each category: composition, palette, rhythm, mood, technique`,
+                `4. Use \`update_reference_analysis\` to save your structured analysis`,
+                ``,
+                `## Phase 2: Extract Key Qualities`,
+                `From your analysis, identify 2-4 key qualities that are most interesting for generative art:`,
+                `- These could be: a specific compositional structure, a color relationship, a rhythmic pattern, a mood quality`,
+                `- Focus on qualities that can be *translated* into code, not literally replicated`,
+                `- Consider what makes this reference compelling — what would be lost if you removed each quality?`,
+                ``,
+                `## Phase 3: Extract Palette`,
+                `1. Use \`extract_palette\` to study the reference's color strategy`,
+                `2. Extract 5-8 hex colors that capture the essential palette`,
+                `3. Save the palette in the reference analysis`,
+                ``,
+                `## Phase 4: Create Study Sketch`,
+                `1. Use \`create_sketch\` with compositionLevel: "study" to create a quick exploration`,
+                `2. Translate the key qualities into generative parameters and algorithm choices:`,
+                `   - Composition → element placement, density distribution, negative space`,
+                `   - Palette → color definitions, themes derived from the reference palette`,
+                `   - Rhythm → repetition patterns, interval variations, scale relationships`,
+                `   - Mood → overall tone, animation speed, mark quality`,
+                `   - Technique → rendering approach, layering, transparency`,
+                `3. Add the reference to the sketch with \`add_reference\``,
+                `4. Document in the philosophy field how the reference influenced the study`,
+                `5. Use \`capture_screenshot\` to verify the result`,
+                ``,
+                `## Phase 5: Compare & Document`,
+                `1. Use \`analyze_reference\` again to see the reference alongside your study`,
+                `2. Evaluate: which qualities translated well? Which were lost or transformed?`,
+                `3. Note what you learned — what worked, what surprised you, what to try next`,
+                `4. Update the study sketch's philosophy with these insights`,
+                ``,
+                `## Guidelines`,
+                `- The goal is *inspiration*, not replication — a study should be recognizably generative`,
+                `- A good study captures the *spirit* of the reference while being authentically algorithmic`,
+                `- Use small canvases (600x600) — studies are explorations, not finished pieces`,
+                `- If the reference suggests multiple interesting directions, create multiple studies`,
+                `- Always pass your \`agent\` name and \`model\` identifier when calling tools`,
+              ]
+                .filter(Boolean)
+                .join("\n"),
             },
           },
         ],

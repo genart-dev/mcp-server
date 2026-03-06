@@ -69,7 +69,7 @@ describe("MCP server integration", () => {
   describe("capability listing", () => {
     it("lists all registered tools (original + design core + plugins)", async () => {
       const result = await client.listTools();
-      expect(result.tools.length).toBe(163);
+      expect(result.tools.length).toBe(167);
     });
 
     it("includes all workspace tools", async () => {
@@ -156,15 +156,16 @@ describe("MCP server integration", () => {
       expect(uris).toContain("genart://renderers");
     });
 
-    it("lists all 5 prompts", async () => {
+    it("lists all 6 prompts", async () => {
       const result = await client.listPrompts();
-      expect(result.prompts.length).toBe(5);
+      expect(result.prompts.length).toBe(6);
       const names = result.prompts.map((p) => p.name);
       expect(names).toContain("create-generative-art");
       expect(names).toContain("explore-variations");
       expect(names).toContain("apply-design-theory");
       expect(names).toContain("critique-and-iterate");
       expect(names).toContain("develop-artistic-concept");
+      expect(names).toContain("study-reference");
     });
   });
 });

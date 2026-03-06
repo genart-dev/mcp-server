@@ -74,6 +74,12 @@ import {
   seriesSummary,
   promoteSketch,
 } from "./tools/series.js";
+import {
+  addReference,
+  analyzeReference,
+  updateReferenceAnalysis,
+  extractPalette,
+} from "./tools/reference.js";
 import { exportSketch } from "./tools/export.js";
 import {
   designAddLayer,
@@ -184,6 +190,7 @@ export function createServer(state: EditorState): McpServer {
   registerCaptureTools(server, state);
   registerCritiqueTools(server, state);
   registerSeriesTools(server, state);
+  registerReferenceTools(server, state);
   registerExportTools(server, state);
 
   registerResources(server, state);
@@ -1458,6 +1465,180 @@ function registerSeriesTools(server: McpServer, state: EditorState): void {
       try {
         const result = await promoteSketch(state, args);
         return jsonResult(result);
+      } catch (e) {
+        return toolError(e instanceof Error ? e.message : String(e));
+      }
+    },
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Reference Tools
+// ---------------------------------------------------------------------------
+
+function registerReferenceTools(server: McpServer, state: EditorState): void {
+  server.tool(
+    "add_reference",
+    "Import an image as a reference for inspiration. Copies the image to the workspace references/ directory and attaches it to a series or sketch.",
+    {
+      image: z.string().describe("Path to the reference image file"),
+      type: z
+        .enum(["image", "artwork", "photograph", "texture", "palette"])
+        .optional()
+        .describe("Reference type (default: image)"),
+      source: z
+        .string()
+        .optional()
+        .describe("Source attribution (artist, URL, collection)"),
+      seriesId: z
+        .string()
+        .optional()
+        .describe("Series to attach the reference to"),
+      sketchId: z
+        .string()
+        .optional()
+        .describe("Sketch to attach the reference to"),
+      id: z
+        .string()
+        .optional()
+        .describe("Custom reference ID (default: derived from filename)"),
+    },
+    async (args) => {
+      try {
+        const result = await addReference(state, args);
+        return jsonResult(result);
+      } catch (e) {
+        return toolError(e instanceof Error ? e.message : String(e));
+      }
+    },
+  );
+
+  server.tool(
+    "analyze_reference",
+    "Return a structured analysis framework for a reference image, with the image for visual inspection. The agent fills in the analysis using the framework prompts.",
+    {
+      referenceId: z.string().describe("ID of the reference to analyze"),
+      seriesId: z
+        .string()
+        .optional()
+        .describe("Series the reference belongs to (speeds up lookup)"),
+      sketchId: z
+        .string()
+        .optional()
+        .describe("Sketch the reference belongs to (speeds up lookup)"),
+      previewSize: z
+        .number()
+        .optional()
+        .describe("Max dimension for preview image (default: native)"),
+    },
+    async (args) => {
+      try {
+        const result = await analyzeReference(state, args);
+        const content: Array<
+          | { type: "text"; text: string }
+          | { type: "image"; data: string; mimeType: string }
+        > = [
+          { type: "text", text: JSON.stringify(result.metadata, null, 2) },
+        ];
+        if (result.previewJpegBase64) {
+          const ext = (result.metadata["path"] as string ?? ".png").split(".").pop() ?? "png";
+          const mimeMap: Record<string, string> = {
+            png: "image/png",
+            jpg: "image/jpeg",
+            jpeg: "image/jpeg",
+            gif: "image/gif",
+            webp: "image/webp",
+            svg: "image/svg+xml",
+          };
+          content.push({
+            type: "image",
+            data: result.previewJpegBase64,
+            mimeType: mimeMap[ext] ?? "image/png",
+          });
+        }
+        return { content };
+      } catch (e) {
+        return toolError(e instanceof Error ? e.message : String(e));
+      }
+    },
+  );
+
+  server.tool(
+    "update_reference_analysis",
+    "Save a structured analysis (composition, palette, rhythm, mood, technique) back to a reference after studying it with analyze_reference.",
+    {
+      referenceId: z.string().describe("ID of the reference to update"),
+      seriesId: z
+        .string()
+        .optional()
+        .describe("Series the reference belongs to"),
+      sketchId: z
+        .string()
+        .optional()
+        .describe("Sketch the reference belongs to"),
+      analysis: z.object({
+        composition: z.string().optional().describe("Compositional structure observations"),
+        palette: z.array(z.string()).optional().describe("Dominant colors as hex values"),
+        rhythm: z.string().optional().describe("Visual rhythm and pattern observations"),
+        mood: z.string().optional().describe("Mood and emotional qualities"),
+        technique: z.string().optional().describe("Technique and medium observations"),
+        keyQualities: z.array(z.string()).optional().describe("Key qualities worth studying"),
+      }).describe("Structured analysis to save"),
+    },
+    async (args) => {
+      try {
+        const result = await updateReferenceAnalysis(state, args);
+        return jsonResult(result);
+      } catch (e) {
+        return toolError(e instanceof Error ? e.message : String(e));
+      }
+    },
+  );
+
+  server.tool(
+    "extract_palette",
+    "Return a reference image for color palette extraction, with guidelines for identifying dominant colors. The agent extracts hex colors visually.",
+    {
+      referenceId: z.string().describe("ID of the reference to extract palette from"),
+      seriesId: z
+        .string()
+        .optional()
+        .describe("Series the reference belongs to"),
+      sketchId: z
+        .string()
+        .optional()
+        .describe("Sketch the reference belongs to"),
+      count: z
+        .number()
+        .optional()
+        .describe("Number of colors to extract (default: 6)"),
+    },
+    async (args) => {
+      try {
+        const result = await extractPalette(state, args);
+        const content: Array<
+          | { type: "text"; text: string }
+          | { type: "image"; data: string; mimeType: string }
+        > = [
+          { type: "text", text: JSON.stringify(result.metadata, null, 2) },
+        ];
+        if (result.previewJpegBase64) {
+          const ext = (result.metadata["path"] as string ?? ".png").split(".").pop() ?? "png";
+          const mimeMap: Record<string, string> = {
+            png: "image/png",
+            jpg: "image/jpeg",
+            jpeg: "image/jpeg",
+            gif: "image/gif",
+            webp: "image/webp",
+            svg: "image/svg+xml",
+          };
+          content.push({
+            type: "image",
+            data: result.previewJpegBase64,
+            mimeType: mimeMap[ext] ?? "image/png",
+          });
+        }
+        return { content };
       } catch (e) {
         return toolError(e instanceof Error ? e.message : String(e));
       }
