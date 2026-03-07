@@ -1,6 +1,6 @@
 {
   "name": "@genart-dev/mcp-server",
-  "version": "0.4.1",
+  "version": "0.4.12",
   "description": "MCP server for genart.dev — tools, resources, and prompts for generative art",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -85,20 +85,12 @@
     "@genart-dev/symbols": "^0.1.0",
     "@modelcontextprotocol/sdk": "^1.12.0",
     "archiver": "^7.0.1",
+    "puppeteer": "^24.0.0",
     "zod": "^3.24.0"
-  },
-  "peerDependencies": {
-    "puppeteer": ">=22.0.0"
-  },
-  "peerDependenciesMeta": {
-    "puppeteer": {
-      "optional": true
-    }
   },
   "devDependencies": {
     "@types/archiver": "^7.0.0",
     "@types/node": "^25.2.3",
-    "puppeteer": "24.37.3",
     "tsup": "^8.3.6",
     "typescript": "^5.7.3",
     "vitest": "^3.2.1"

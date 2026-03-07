@@ -82,6 +82,7 @@ import {
   extractPalette,
 } from "./tools/reference.js";
 import { exportSketch } from "./tools/export.js";
+import { previewSketch } from "./tools/preview.js";
 import {
   designAddLayer,
   designRemoveLayer,
@@ -149,25 +150,38 @@ async function initializePluginRegistry(): Promise<PluginRegistry> {
   return registry;
 }
 
+export interface CreateServerOptions {
+  /** Only register capture tools (for local-only capture companion server). */
+  captureOnly?: boolean;
+}
+
 /** Create and configure the MCP server with all tools. */
-export function createServer(state: EditorState): McpServer {
+export function createServer(
+  state: EditorState,
+  options?: CreateServerOptions,
+): McpServer {
+  const captureOnly = options?.captureOnly ?? false;
+
   const server = new McpServer(
     {
-      name: "@genart/mcp-server",
+      name: captureOnly ? "@genart/mcp-capture" : "@genart/mcp-server",
       version: "0.4.0",
     },
     {
       capabilities: {
         tools: {},
-        resources: {},
-        prompts: {},
+        ...(!captureOnly && { resources: {}, prompts: {} }),
       },
     },
   );
 
-  // Initialize plugin registry (async, but we register tools synchronously
-  // after awaiting inside this wrapper — the tools are registered before
-  // the server starts accepting requests because connect() is called after)
+  if (captureOnly) {
+    // Local capture-only mode: just capture + export tools, no remote deps
+    registerCaptureTools(server, state);
+    return server;
+  }
+
+  // Full server mode — register all tools
   const registryReady = initializePluginRegistry().then((registry) => {
     state.pluginRegistry = registry;
     registerPluginMcpTools(server, registry, state);
@@ -189,11 +203,15 @@ export function createServer(state: EditorState): McpServer {
   registerKnowledgeTools(server, state);
   registerDesignTools(server, state);
 
-  registerCaptureTools(server, state);
+  // Capture tools require puppeteer + local filesystem — skip in remote mode
+  if (!state.remoteMode) {
+    registerCaptureTools(server, state);
+  }
   registerCritiqueTools(server, state);
   registerSeriesTools(server, state);
   registerReferenceTools(server, state);
   registerExportTools(server, state);
+  registerPreviewTools(server, state);
 
   registerResources(server, state);
   registerPrompts(server, state);
@@ -397,10 +415,56 @@ function registerSketchTools(server: McpServer, state: EditorState): void {
         .describe("Path to workspace to add sketch to after creation"),
       agent: z.string().optional().describe("Your CLI agent name (e.g. 'claude-code', 'codex-cli', 'gemini-cli', 'opencode', 'kiro')"),
       model: z.string().optional().describe("Your AI model identifier (e.g. 'claude-opus-4-6', 'gpt-4o', 'gemini-2.5-pro')"),
+      capture: z.boolean().optional().describe("When true, automatically capture a screenshot after creation and return it inline (avoids a separate capture_screenshot call)"),
+      preview: z.boolean().optional().describe("When true, generate an interactive HTML preview with sliders/pickers/seed controls and open it in the browser"),
     },
     async (args) => {
       try {
         const result = await createSketch(state, args);
+
+        // If capture requested and we're in local mode (capture tools available),
+        // run headless capture and return image inline with metadata.
+        if (args.capture && !state.remoteMode) {
+          try {
+            const captureResult = await captureScreenshot(state, {
+              target: "sketch",
+              sketchId: args.id,
+            });
+            return {
+              content: [
+                { type: "text" as const, text: JSON.stringify({
+                  ...result,
+                  capture: captureResult.metadata,
+                }, null, 2) },
+                {
+                  type: "image" as const,
+                  data: captureResult.previewJpegBase64,
+                  mimeType: "image/jpeg" as const,
+                },
+              ],
+            };
+          } catch (captureErr) {
+            // Capture failed but sketch was created successfully — return sketch result with capture error
+            return jsonResult({
+              ...result,
+              captureError: captureErr instanceof Error ? captureErr.message : String(captureErr),
+            });
+          }
+        }
+
+        // If preview requested, generate interactive HTML and open in browser.
+        if (args.preview) {
+          try {
+            const previewResult = await previewSketch(state, { sketchId: args.id });
+            return jsonResult({ ...result, preview: previewResult });
+          } catch (previewErr) {
+            return jsonResult({
+              ...result,
+              previewError: previewErr instanceof Error ? previewErr.message : String(previewErr),
+            });
+          }
+        }
+
         return jsonResult(result);
       } catch (e) {
         return toolError(e instanceof Error ? e.message : String(e));
@@ -475,10 +539,25 @@ function registerSketchTools(server: McpServer, state: EditorState): void {
       skills: z.array(z.string()).optional().describe("Replace design skill references"),
       agent: z.string().optional().describe("Your CLI agent name (e.g. 'claude-code', 'codex-cli', 'gemini-cli', 'opencode', 'kiro')"),
       model: z.string().optional().describe("Your AI model identifier (e.g. 'claude-opus-4-6', 'gpt-4o', 'gemini-2.5-pro')"),
+      preview: z.boolean().optional().describe("When true, generate an interactive HTML preview with sliders/pickers/seed controls and open it in the browser"),
     },
     async (args) => {
       try {
         const result = await updateSketch(state, args);
+
+        // If preview requested, generate interactive HTML and open in browser.
+        if (args.preview) {
+          try {
+            const previewResult = await previewSketch(state, { sketchId: args.sketchId });
+            return jsonResult({ ...result, preview: previewResult });
+          } catch (previewErr) {
+            return jsonResult({
+              ...result,
+              previewError: previewErr instanceof Error ? previewErr.message : String(previewErr),
+            });
+          }
+        }
+
         return jsonResult(result);
       } catch (e) {
         return toolError(e instanceof Error ? e.message : String(e));
@@ -1150,7 +1229,7 @@ function registerSnapshotTools(server: McpServer, state: EditorState): void {
 function registerCaptureTools(server: McpServer, state: EditorState): void {
   server.tool(
     "capture_screenshot",
-    "Capture a screenshot of a sketch. Returns metadata as text + a small inline JPEG image for visual review. In remote mode, metadata includes previewFileContent (base64 PNG) to Write locally.",
+    "Capture a screenshot of a sketch. Returns an inline JPEG image + metadata as text. In local mode, also writes a full-res PNG to snapshots/<sketchId>-<seed>-preview.png (path in savedPreviewTo).",
     {
       target: z
         .enum(["selected", "sketch"])
@@ -1184,13 +1263,19 @@ function registerCaptureTools(server: McpServer, state: EditorState): void {
     async (args) => {
       try {
         const result = await captureScreenshot(state, args);
+        console.error(`[capture_screenshot] jpeg base64 length: ${result.previewJpegBase64.length}`);
         return {
           content: [
             { type: "text" as const, text: JSON.stringify(result.metadata, null, 2) },
-            { type: "image" as const, data: result.previewJpegBase64, mimeType: "image/jpeg" as const },
+            {
+              type: "image" as const,
+              data: result.previewJpegBase64,
+              mimeType: "image/jpeg" as const,
+            },
           ],
         };
       } catch (e) {
+        console.error(`[capture_screenshot] error: ${e instanceof Error ? e.message : String(e)}`);
         return toolError(e instanceof Error ? e.message : String(e));
       }
     },
@@ -1198,7 +1283,7 @@ function registerCaptureTools(server: McpServer, state: EditorState): void {
 
   server.tool(
     "capture_batch",
-    "Capture screenshots of multiple sketches in parallel. Returns metadata as text + inline JPEG images for visual review.",
+    "Capture screenshots of multiple sketches in parallel. Returns inline JPEG images + per-sketch metadata. In local mode, writes full-res PNGs to snapshots/.",
     {
       sketchIds: z
         .array(z.string())
@@ -1224,22 +1309,19 @@ function registerCaptureTools(server: McpServer, state: EditorState): void {
     async (args) => {
       try {
         const result = await captureBatch(state, args);
-        const content: Array<
-          | { type: "text"; text: string }
-          | { type: "image"; data: string; mimeType: "image/jpeg" }
-        > = [
+        const content: any[] = [
           { type: "text", text: JSON.stringify(result.metadata, null, 2) },
         ];
-        // Add per-sketch metadata + inline JPEG image blocks
+        // Add per-sketch image + metadata (image first for inline rendering)
         for (const item of result.items) {
-          content.push({
-            type: "text",
-            text: JSON.stringify(item.metadata, null, 2),
-          });
           content.push({
             type: "image",
             data: item.inlineJpegBase64,
             mimeType: "image/jpeg",
+          });
+          content.push({
+            type: "text",
+            text: JSON.stringify(item.metadata, null, 2),
           });
         }
         return { content };
@@ -1682,6 +1764,36 @@ function registerExportTools(server: McpServer, state: EditorState): void {
     async (args) => {
       try {
         const result = await exportSketch(state, args);
+        return jsonResult(result);
+      } catch (e) {
+        return toolError(e instanceof Error ? e.message : String(e));
+      }
+    },
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Preview Tools
+// ---------------------------------------------------------------------------
+
+function registerPreviewTools(server: McpServer, state: EditorState): void {
+  server.tool(
+    "preview_sketch",
+    "Generate an interactive HTML preview with parameter sliders, color pickers, and seed controls, then open it in the browser",
+    {
+      sketchId: z.string().describe("ID of the sketch to preview"),
+      seed: z
+        .number()
+        .optional()
+        .describe("Override seed for the preview"),
+      params: z
+        .record(z.number())
+        .optional()
+        .describe("Override params for the preview"),
+    },
+    async (args) => {
+      try {
+        const result = await previewSketch(state, args);
         return jsonResult(result);
       } catch (e) {
         return toolError(e instanceof Error ? e.message : String(e));
