@@ -456,7 +456,12 @@ function registerSketchTools(server: McpServer, state: EditorState): void {
         if (args.preview) {
           try {
             const previewResult = await previewSketch(state, { sketchId: args.id });
-            return jsonResult({ ...result, preview: previewResult });
+            return {
+              content: [
+                { type: "text" as const, text: JSON.stringify({ ...result, preview: previewResult.metadata }, null, 2) },
+                { type: "text" as const, text: previewResult.html },
+              ],
+            };
           } catch (previewErr) {
             return jsonResult({
               ...result,
@@ -549,7 +554,12 @@ function registerSketchTools(server: McpServer, state: EditorState): void {
         if (args.preview) {
           try {
             const previewResult = await previewSketch(state, { sketchId: args.sketchId });
-            return jsonResult({ ...result, preview: previewResult });
+            return {
+              content: [
+                { type: "text" as const, text: JSON.stringify({ ...result, preview: previewResult.metadata }, null, 2) },
+                { type: "text" as const, text: previewResult.html },
+              ],
+            };
           } catch (previewErr) {
             return jsonResult({
               ...result,
@@ -1779,7 +1789,7 @@ function registerExportTools(server: McpServer, state: EditorState): void {
 function registerPreviewTools(server: McpServer, state: EditorState): void {
   server.tool(
     "preview_sketch",
-    "Generate an interactive HTML preview with parameter sliders, color pickers, and seed controls, then open it in the browser",
+    "Generate an interactive HTML preview with parameter sliders, color pickers, and seed controls. Returns the HTML content for artifact display and also opens it in the browser.",
     {
       sketchId: z.string().describe("ID of the sketch to preview"),
       seed: z
@@ -1794,7 +1804,12 @@ function registerPreviewTools(server: McpServer, state: EditorState): void {
     async (args) => {
       try {
         const result = await previewSketch(state, args);
-        return jsonResult(result);
+        return {
+          content: [
+            { type: "text" as const, text: JSON.stringify(result.metadata, null, 2) },
+            { type: "text" as const, text: result.html },
+          ],
+        };
       } catch (e) {
         return toolError(e instanceof Error ? e.message : String(e));
       }

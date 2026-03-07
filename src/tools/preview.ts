@@ -38,10 +38,15 @@ export interface PreviewSketchInput {
   params?: Record<string, number>;
 }
 
+export interface PreviewSketchResult {
+  metadata: Record<string, unknown>;
+  html: string;
+}
+
 export async function previewSketch(
   state: EditorState,
   input: PreviewSketchInput,
-): Promise<Record<string, unknown>> {
+): Promise<PreviewSketchResult> {
   state.requireWorkspace();
 
   const loaded = state.requireSketch(input.sketchId);
@@ -82,11 +87,14 @@ export async function previewSketch(
   }
 
   return {
-    success: true,
-    sketchId: sketch.id,
-    path: previewPath,
-    opened,
-    renderer: sketch.renderer.type,
-    seed: sketch.state.seed,
+    metadata: {
+      success: true,
+      sketchId: sketch.id,
+      path: previewPath,
+      opened,
+      renderer: sketch.renderer.type,
+      seed: sketch.state.seed,
+    },
+    html,
   };
 }
