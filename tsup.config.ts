@@ -7,4 +7,7 @@ export default defineConfig({
   clean: true,
   sourcemap: true,
   splitting: false,
+  esbuildOptions(options) {
+    options.loader = { ...options.loader, ".html": "text" };
+  },
 });

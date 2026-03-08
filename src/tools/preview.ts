@@ -6,10 +6,10 @@
 import { exec } from "child_process";
 import { mkdir, writeFile } from "fs/promises";
 import { dirname, join } from "path";
-import { createDefaultRegistry } from "@genart-dev/core";
 import { EditorState } from "../state.js";
-
-const registry = createDefaultRegistry();
+// @ts-ignore — esbuild text loader
+import viewerTemplate from "../assets/viewer.html";
+import type { SketchDefinition } from "@genart-dev/format";
 
 /** Open a file in the default browser. */
 function openInBrowser(filePath: string): void {
@@ -29,6 +29,18 @@ function openInBrowser(filePath: string): void {
 }
 
 // ---------------------------------------------------------------------------
+// Viewer HTML generation
+// ---------------------------------------------------------------------------
+
+/** Inject sketch JSON into the viewer.html template. */
+export function generateViewerHTML(sketch: SketchDefinition): string {
+  return viewerTemplate.replace(
+    "var __GENART_DATA__ = null;",
+    `var __GENART_DATA__ = ${JSON.stringify(sketch)};`,
+  );
+}
+
+// ---------------------------------------------------------------------------
 // preview_sketch
 // ---------------------------------------------------------------------------
 
@@ -40,7 +52,6 @@ export interface PreviewSketchInput {
 
 export interface PreviewSketchResult {
   metadata: Record<string, unknown>;
-  html: string;
 }
 
 export async function previewSketch(
@@ -64,12 +75,7 @@ export async function previewSketch(
     sketch = { ...sketch, state: newState };
   }
 
-  const adapter = registry.resolve(sketch.renderer.type);
-  if (!adapter) {
-    throw new Error(`Unsupported renderer type: '${sketch.renderer.type}'`);
-  }
-
-  const html = adapter.generateInteractiveHTML(sketch);
+  const html = generateViewerHTML(sketch);
 
   // Write to <workspace>/previews/<sketchId>.html
   const workspaceDir = dirname(state.workspacePath!);
@@ -95,6 +101,5 @@ export async function previewSketch(
       renderer: sketch.renderer.type,
       seed: sketch.state.seed,
     },
-    html,
   };
 }

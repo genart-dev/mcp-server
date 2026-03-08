@@ -27,7 +27,7 @@ export function registerPrompts(
 function registerCreateGenerativeArt(server: McpServer): void {
   server.prompt(
     "create-generative-art",
-    "Create a new piece of generative art with structured guidance",
+    "Create a new piece of generative art with algorithmic philosophy, structured parameters, and interactive preview",
     {
       concept: z
         .string()
@@ -50,6 +50,13 @@ function registerCreateGenerativeArt(server: McpServer): void {
       const complexity = args.complexity ?? "moderate";
       const canvas = args.canvas ?? "square-1200";
 
+      const complexityGuide =
+        complexity === "simple"
+          ? `Keep the algorithm under 50 lines with 2-3 parameters.`
+          : complexity === "complex"
+            ? `The algorithm can be extensive; use 5+ parameters and consider animation.`
+            : `Aim for 30-80 lines with 3-5 parameters.`;
+
       return {
         messages: [
           {
@@ -57,36 +64,100 @@ function registerCreateGenerativeArt(server: McpServer): void {
             content: {
               type: "text" as const,
               text: [
-                `Create a generative art sketch with the following specifications:`,
+                `Create a generative art sketch. Follow this two-phase process:`,
                 ``,
-                `## Concept`,
-                `${args.concept}`,
-                ``,
-                `## Technical Specifications`,
+                `## Input`,
+                `- **Concept:** ${args.concept}`,
                 `- **Renderer:** ${renderer}`,
-                `- **Complexity:** ${complexity}`,
+                `- **Complexity:** ${complexity} (${complexityGuide})`,
                 `- **Canvas:** ${canvas}`,
                 ``,
-                `## Steps`,
-                `1. Use \`create_sketch\` to create a new .genart file with a relative path (e.g. \`my-sketch.genart\`)`,
-                `2. Design 3–6 parameters that control visual variation (range sliders)`,
-                `3. Define 2–4 color parameters for palette control`,
-                `4. Write the algorithm that implements the concept`,
-                `5. Use \`update_algorithm\` to set the algorithm with validation`,
-                `6. Use \`capture_screenshot\` to verify the visual output`,
-                `7. Iterate on parameters and algorithm until the result matches the concept`,
+                `## Phase 1: Algorithmic Philosophy`,
                 ``,
-                `## Guidelines`,
-                `- Parameters should have meaningful ranges that produce visually distinct results`,
-                `- The algorithm should be deterministic given the same seed and parameters`,
-                `- Include a philosophy field describing the artistic intent`,
-                `- Use design principles: balance, contrast, rhythm, harmony`,
-                `- Always pass your \`agent\` name and \`model\` identifier when calling tools that create or modify sketches`,
-                complexity === "simple"
-                  ? `- Keep the algorithm under 50 lines with 2–3 parameters`
-                  : complexity === "complex"
-                    ? `- The algorithm can be extensive; use 5+ parameters and consider animation`
-                    : `- Aim for 30–80 lines with 3–5 parameters`,
+                `Before writing any code, create an ALGORITHMIC PHILOSOPHY — a computational aesthetic manifesto for this piece.`,
+                ``,
+                `**Name the movement** (1-2 words): e.g. "Organic Turbulence", "Quantum Harmonics", "Emergent Stillness"`,
+                ``,
+                `**Write 4-6 paragraphs** describing how this philosophy manifests through:`,
+                `- Computational processes and mathematical relationships`,
+                `- Noise functions and randomness patterns`,
+                `- Particle behaviors and field dynamics`,
+                `- Parametric variation and emergent complexity`,
+                ``,
+                `**Guidelines:**`,
+                `- Avoid redundancy — each concept mentioned once`,
+                `- Emphasize craftsmanship REPEATEDLY — "meticulously crafted," "product of deep expertise," "painstaking optimization"`,
+                `- Leave creative space for implementation choices`,
+                `- Beauty lives in the PROCESS, not the final frame`,
+                ``,
+                `**Deduce the conceptual seed:** Identify a subtle, niche reference embedded within the algorithm — not literal, always sophisticated. Someone familiar should feel it intuitively; others simply experience masterful generative composition. Like a jazz musician quoting a song through harmonic structure.`,
+                ``,
+                `## Phase 2: Implementation via \`create_sketch\``,
+                ``,
+                `Call \`create_sketch\` with ALL of these fields in a single call:`,
+                `- \`id\`: kebab-case slug`,
+                `- \`title\`: human-readable title`,
+                `- \`path\`: "\${id}.genart"`,
+                `- \`renderer\`: "${renderer}"`,
+                `- \`canvas\`: { width/height from "${canvas}" }`,
+                `- \`philosophy\`: the 4-6 paragraph manifesto from Phase 1`,
+                `- \`seed\`: a starting seed`,
+                `- \`parameters\`: 3-8 params with meaningful ranges`,
+                `- \`colors\`: 2-4 colors with semantic labels and thoughtful defaults`,
+                `- \`themes\`: 2-4 named palette presets`,
+                `- \`components\`: declare shared utilities (e.g. \`"prng": "^1.0.0"\`, \`"noise-2d": "^1.0.0"\`) — do NOT embed PRNG/noise/easing inline`,
+                `- \`algorithm\`: the code expressing the philosophy`,
+                ``,
+                `**The preview auto-opens in the browser** with parameter sliders, color pickers, and seed controls.`,
+                ``,
+                renderer === "p5"
+                  ? [
+                      `### p5 Algorithm Contract`,
+                      `\`\`\`javascript`,
+                      `function sketch(p, state) {`,
+                      `  const W = state.canvas.width, H = state.canvas.height;`,
+                      `  const rng = mulberry32(state.seed); // from "prng" component`,
+                      `  // Read params: state.params.noiseScale, state.params.count`,
+                      `  // Read colors: state.colorPalette[0], state.colorPalette[1]`,
+                      `  p.setup = function() { p.createCanvas(W, H); p.pixelDensity(1); };`,
+                      `  p.draw = function() { /* express the philosophy */ };`,
+                      `}`,
+                      `\`\`\``,
+                      `- ALWAYS prefix p5 calls with \`p.\` (instance mode)`,
+                      `- NEVER use bare \`createCanvas()\`, \`background()\`, etc.`,
+                      `- Use \`mulberry32(state.seed)\` from the "prng" component — NEVER \`Math.random()\``,
+                    ].join("\n")
+                  : renderer === "canvas2d"
+                    ? [
+                        `### canvas2d Algorithm Contract`,
+                        `\`\`\`javascript`,
+                        `function draw(ctx, state) {`,
+                        `  const W = state.canvas.width, H = state.canvas.height;`,
+                        `  const rng = mulberry32(state.seed);`,
+                        `  // state.params.key, state.colorPalette[index]`,
+                        `  ctx.fillStyle = state.colorPalette[0];`,
+                        `  ctx.fillRect(0, 0, W, H);`,
+                        `  // ... express the philosophy`,
+                        `}`,
+                        `\`\`\``,
+                      ].join("\n")
+                    : `Use the ${renderer} algorithm contract (see \`create_sketch\` tool description for state API).`,
+                ``,
+                `## Craftsmanship`,
+                ``,
+                `Create algorithms that feel like they emerged through countless iterations by a master generative artist:`,
+                `- **Balance**: Complexity without visual noise, order without rigidity`,
+                `- **Color Harmony**: Thoughtful palettes, not random RGB values`,
+                `- **Composition**: Even in randomness, maintain visual hierarchy and flow`,
+                `- **Performance**: Smooth execution, optimized for real-time if animated`,
+                `- **Reproducibility**: Same seed ALWAYS produces identical output`,
+                ``,
+                `## After Creation`,
+                ``,
+                `- The browser preview opens automatically — the user can adjust sliders and explore seeds`,
+                `- Use \`update_algorithm\` to iterate on the code`,
+                `- Use \`set_parameters\` / \`set_colors\` to tune values`,
+                `- Use \`fork_sketch\` to create variations`,
               ].join("\n"),
             },
           },

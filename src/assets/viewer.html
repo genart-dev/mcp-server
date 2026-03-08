@@ -1,0 +1,845 @@
+<!DOCTYPE html>
+<!--
+  genart.dev Viewer — Renders .genart sketch files with interactive controls.
+
+  Modes:
+  1. Embedded: __GENART_DATA__ is replaced with sketch JSON (for artifacts)
+  2. URL param: viewer.html?file=path.genart (requires http server)
+  3. File picker: drag-and-drop or click "Load file" button
+
+  Supports all 5 renderers: canvas2d, p5, svg, three, glsl.
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>genart.dev Viewer</title>
+  <style>
+    :root {
+      --gp-bg: #0a0a0a;
+      --gp-panel: #141414;
+      --gp-border: #2a2a2a;
+      --gp-text: #f0f0f0;
+      --gp-text-secondary: #aaaaaa;
+      --gp-text-muted: #666666;
+      --gp-accent: #c4342d;
+      --gp-input-bg: #1a1a1a;
+      --gp-input-border: #333333;
+      --gp-slider-track: #333333;
+      --gp-slider-thumb: #c4342d;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: var(--gp-bg);
+      color: var(--gp-text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans-serif;
+      font-size: 13px;
+      display: flex;
+      min-height: 100vh;
+    }
+
+    /* Canvas area */
+    #canvas-area {
+      flex: 1;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-width: 0;
+      position: relative;
+    }
+    #canvas-area canvas, #canvas-area svg { display: block; max-width: 100%; max-height: 100vh; }
+    #svg-container svg { display: block; width: 100%; height: auto; max-width: 100vw; max-height: 100vh; }
+
+    /* Loading / drop zone */
+    #drop-zone {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      width: 100%;
+      height: 100%;
+      color: var(--gp-text-muted);
+    }
+    #drop-zone.drag-over { background: rgba(196, 52, 45, 0.08); }
+    #drop-zone svg { opacity: 0.3; }
+    .drop-label { font-size: 14px; }
+    .drop-sub { font-size: 12px; color: var(--gp-text-muted); }
+    .file-btn {
+      background: var(--gp-accent);
+      color: #fff;
+      border: none;
+      padding: 8px 20px;
+      border-radius: 6px;
+      font-size: 13px;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .file-btn:hover { opacity: 0.9; }
+    #file-input { display: none; }
+
+    /* Panel */
+    #genart-panel {
+      width: 320px;
+      min-width: 320px;
+      background: var(--gp-panel);
+      border-left: 1px solid var(--gp-border);
+      overflow-y: auto;
+      display: none;
+      flex-direction: column;
+    }
+    .gp-header { padding: 16px; border-bottom: 1px solid var(--gp-border); }
+    .gp-header-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+    .gp-brand { font-size: 13px; font-weight: 600; color: var(--gp-text-secondary); letter-spacing: -0.3px; }
+    .gp-title { font-size: 15px; font-weight: 600; margin-bottom: 2px; }
+    .gp-filename { font-size: 12px; color: var(--gp-text-muted); font-family: 'SF Mono', Menlo, Consolas, monospace; }
+    .gp-meta-row { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+    .gp-badge {
+      display: inline-block; padding: 2px 8px; border-radius: 3px;
+      font-size: 10px; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 0.5px; background: var(--gp-accent); color: #fff;
+    }
+    .gp-seed-display { font-size: 12px; color: var(--gp-text-secondary); font-family: 'SF Mono', Menlo, Consolas, monospace; }
+    .gp-reseed-btn {
+      margin-left: auto; background: none; border: 1px solid var(--gp-border);
+      color: var(--gp-text-secondary); padding: 3px 10px; border-radius: 4px;
+      font-size: 11px; cursor: pointer; font-family: inherit;
+    }
+    .gp-reseed-btn:hover { background: #1e1e1e; color: var(--gp-text); }
+
+    /* Sections */
+    .gp-section { padding: 14px 16px; border-bottom: 1px solid var(--gp-border); }
+    .gp-section-title {
+      font-size: 10px; text-transform: uppercase; letter-spacing: 1px;
+      color: var(--gp-text-muted); margin-bottom: 12px; font-weight: 600;
+    }
+
+    /* Params */
+    .gp-param-row { display: flex; align-items: center; margin-bottom: 10px; }
+    .gp-param-row:last-child { margin-bottom: 0; }
+    .gp-param-label { flex: 0 0 auto; font-size: 12px; color: var(--gp-text-secondary); margin-right: 12px; }
+    .gp-param-slider {
+      flex: 1; -webkit-appearance: none; appearance: none; height: 3px;
+      background: var(--gp-slider-track); border-radius: 2px; outline: none; margin: 0 10px;
+    }
+    .gp-param-slider::-webkit-slider-thumb {
+      -webkit-appearance: none; width: 12px; height: 12px;
+      border-radius: 50%; background: var(--gp-slider-thumb); cursor: pointer;
+    }
+    .gp-param-value {
+      flex: 0 0 auto; min-width: 36px; font-size: 12px; color: var(--gp-accent);
+      text-align: right; font-family: 'SF Mono', Menlo, Consolas, monospace;
+    }
+
+    /* Colors */
+    .gp-color-row { display: flex; align-items: center; margin-bottom: 8px; }
+    .gp-color-row:last-child { margin-bottom: 0; }
+    .gp-color-label { flex: 1; font-size: 12px; color: var(--gp-text-secondary); }
+    .gp-color-input {
+      width: 32px; height: 24px; border: 1px solid var(--gp-border);
+      border-radius: 4px; background: none; cursor: pointer; padding: 0;
+    }
+
+    /* Themes */
+    .gp-theme-select {
+      width: 100%; background: var(--gp-input-bg); border: 1px solid var(--gp-input-border);
+      color: var(--gp-text); border-radius: 4px; padding: 6px 8px; font-size: 12px; font-family: inherit;
+    }
+
+    /* Philosophy */
+    .gp-philosophy { font-size: 12px; line-height: 1.5; color: var(--gp-text-muted); white-space: pre-wrap; }
+
+    /* File info */
+    .gp-info-grid { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; font-size: 11px; }
+    .gp-info-key { color: var(--gp-text-muted); }
+    .gp-info-val { color: var(--gp-text-secondary); font-family: 'SF Mono', Menlo, Consolas, monospace; }
+
+    /* Copy State button */
+    .gp-copy-btn {
+      width: 100%; background: var(--gp-input-bg); border: 1px solid var(--gp-input-border);
+      color: var(--gp-text-secondary); padding: 8px; border-radius: 4px;
+      font-size: 12px; cursor: pointer; font-family: inherit; margin-top: 10px;
+    }
+    .gp-copy-btn:hover { background: #1e1e1e; color: var(--gp-text); }
+
+    /* Toast */
+    .gp-toast {
+      position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+      background: var(--gp-accent); color: #fff; padding: 8px 20px;
+      border-radius: 6px; font-size: 12px; opacity: 0; transition: opacity 0.3s;
+      pointer-events: none; z-index: 1001;
+    }
+
+    /* Error */
+    .gp-error {
+      background: #2a1515; border: 1px solid #5a2020; padding: 16px;
+      border-radius: 8px; max-width: 500px; font-size: 13px; line-height: 1.5;
+    }
+    .gp-error-title { color: var(--gp-accent); font-weight: 600; margin-bottom: 8px; }
+    .gp-error-msg { color: var(--gp-text-secondary); font-family: 'SF Mono', Menlo, Consolas, monospace; font-size: 12px; }
+  </style>
+</head>
+<body>
+
+<div id="canvas-area">
+  <div id="drop-zone">
+    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+      <polyline points="14 2 14 8 20 8"/>
+      <line x1="12" y1="18" x2="12" y2="12"/>
+      <polyline points="9 15 12 12 15 15"/>
+    </svg>
+    <div class="drop-label">Drop a .genart file here</div>
+    <div class="drop-sub">or</div>
+    <button class="file-btn" onclick="document.getElementById('file-input').click()">Choose file</button>
+    <input type="file" id="file-input" accept=".genart" />
+  </div>
+</div>
+
+<div id="genart-panel"></div>
+<div class="gp-toast" id="gp-toast"></div>
+
+<script>
+// ---------------------------------------------------------------------------
+// Embedded data sentinel — skill replaces this with actual sketch JSON
+// ---------------------------------------------------------------------------
+var __GENART_DATA__ = null;
+
+// ---------------------------------------------------------------------------
+// State
+// ---------------------------------------------------------------------------
+var sketch = null;         // parsed SketchDefinition
+var state = null;          // mutable runtime state
+var rendererType = null;
+var colorDefs = [];
+var themes = [];
+var rerender = null;       // set by renderer setup
+
+// ---------------------------------------------------------------------------
+// Initialization
+// ---------------------------------------------------------------------------
+(function init() {
+  // Mode 1: Embedded data
+  if (__GENART_DATA__) {
+    loadSketch(__GENART_DATA__);
+    return;
+  }
+
+  // Mode 2: URL param
+  var params = new URLSearchParams(location.search);
+  var filePath = params.get('file');
+  if (filePath) {
+    fetch(filePath)
+      .then(function(r) { if (!r.ok) throw new Error(r.status + ' ' + r.statusText); return r.json(); })
+      .then(loadSketch)
+      .catch(function(e) { showError('Failed to load ' + filePath, e.message); });
+    return;
+  }
+
+  // Mode 3: File picker / drag-and-drop
+  setupDropZone();
+})();
+
+function setupDropZone() {
+  var zone = document.getElementById('drop-zone');
+  var input = document.getElementById('file-input');
+
+  zone.addEventListener('dragover', function(e) {
+    e.preventDefault();
+    zone.classList.add('drag-over');
+  });
+  zone.addEventListener('dragleave', function() {
+    zone.classList.remove('drag-over');
+  });
+  zone.addEventListener('drop', function(e) {
+    e.preventDefault();
+    zone.classList.remove('drag-over');
+    var file = e.dataTransfer.files[0];
+    if (file) readFile(file);
+  });
+  input.addEventListener('change', function() {
+    if (input.files[0]) readFile(input.files[0]);
+  });
+}
+
+function readFile(file) {
+  var reader = new FileReader();
+  reader.onload = function() {
+    try {
+      var json = JSON.parse(reader.result);
+      loadSketch(json);
+    } catch (e) {
+      showError('Invalid .genart file', e.message);
+    }
+  };
+  reader.readAsText(file);
+}
+
+// ---------------------------------------------------------------------------
+// Load sketch
+// ---------------------------------------------------------------------------
+function loadSketch(data) {
+  try {
+    sketch = data;
+    rendererType = typeof sketch.renderer === 'string' ? sketch.renderer : (sketch.renderer && sketch.renderer.type) || 'p5';
+
+    // Build runtime state
+    state = JSON.parse(JSON.stringify(sketch.state));
+    state.canvas = {
+      width: sketch.canvas.width,
+      height: sketch.canvas.height,
+      pixelDensity: sketch.canvas.pixelDensity || 1
+    };
+
+    // p5 uppercase aliases
+    if (rendererType === 'p5') {
+      state.WIDTH = sketch.canvas.width;
+      state.HEIGHT = sketch.canvas.height;
+      state.SEED = state.seed;
+      state.PARAMS = state.params;
+      state.COLORS = {};
+      for (var i = 0; i < (sketch.colors || []).length; i++) {
+        state.COLORS[sketch.colors[i].key] = state.colorPalette[i] || '#000000';
+      }
+    }
+
+    colorDefs = sketch.colors || [];
+    themes = sketch.themes || [];
+
+    // Update document title
+    document.title = sketch.title + ' — genart.dev';
+
+    // Hide drop zone, show canvas area and panel
+    var zone = document.getElementById('drop-zone');
+    if (zone) zone.style.display = 'none';
+
+    buildPanel();
+    setupRenderer();
+  } catch (e) {
+    showError('Failed to parse sketch', e.message);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Extract component code (same logic as core/component-utils.ts)
+// ---------------------------------------------------------------------------
+function extractComponents(components) {
+  if (!components) return '';
+  var blocks = [];
+  var keys = Object.keys(components);
+  for (var i = 0; i < keys.length; i++) {
+    var name = keys[i];
+    var val = components[name];
+    if (typeof val === 'string') continue; // unresolved
+    if (val && val.code) {
+      var ver = val.version ? ' v' + val.version : '';
+      blocks.push('// --- ' + name + ver + ' ---\n' + val.code);
+    }
+  }
+  return blocks.join('\n\n');
+}
+
+function extractSymbols(symbols) {
+  if (!symbols) return '';
+  var resolved = {};
+  var keys = Object.keys(symbols);
+  var count = 0;
+  for (var i = 0; i < keys.length; i++) {
+    if (typeof symbols[keys[i]] !== 'string') {
+      resolved[keys[i]] = symbols[keys[i]];
+      count++;
+    }
+  }
+  if (count === 0) return '';
+  return 'const __symbols__ = ' + JSON.stringify(resolved) + ';';
+}
+
+// ---------------------------------------------------------------------------
+// GLSL helpers
+// ---------------------------------------------------------------------------
+function injectGLSL(algorithm, componentCode) {
+  if (!componentCode) return algorithm;
+  var trimmed = algorithm.trimStart();
+  var versionMatch = trimmed.match(/^(#version\s+\S+[^\n]*\n)/);
+  var versionLine = versionMatch ? versionMatch[1] : '';
+  var body = versionMatch ? trimmed.slice(versionLine.length) : trimmed;
+  var precisionLines = [];
+  var pm;
+  while ((pm = body.match(/^\s*(precision\s+\w+\s+\w+;\s*\n)/)) !== null) {
+    precisionLines.push(pm[1]);
+    body = body.slice(pm[0].length);
+  }
+  return versionLine + precisionLines.join('') + '\n' + componentCode + '\n\n' + body;
+}
+
+function extractGLSLUniforms(source) {
+  var params = [], colors = [];
+  var re = /uniform\s+(?:float|vec[234]|int|mat[234])\s+(u_\w+)/g;
+  var builtins = ['u_resolution', 'u_time', 'u_seed', 'u_mouse', 'u_frame'];
+  var m;
+  while ((m = re.exec(source)) !== null) {
+    var name = m[1];
+    if (builtins.indexOf(name) !== -1) continue;
+    if (/^u_color\d+$/.test(name)) colors.push(name);
+    else params.push(name);
+  }
+  return { params: params, colors: colors };
+}
+
+// ---------------------------------------------------------------------------
+// Build interactive panel
+// ---------------------------------------------------------------------------
+function buildPanel() {
+  var panel = document.getElementById('genart-panel');
+  var html = [];
+  var filename = sketch.id + '.genart';
+  var renderer = rendererType.toUpperCase();
+
+  // Header
+  html.push('<div class="gp-header">');
+  html.push('<div class="gp-header-top">');
+  html.push('<span class="gp-brand">genart.dev</span>');
+  html.push('<span class="gp-filename">' + esc(filename) + '</span>');
+  html.push('</div>');
+  html.push('<div class="gp-title">' + esc(sketch.title) + '</div>');
+  html.push('<div class="gp-meta-row">');
+  html.push('<span class="gp-badge">' + esc(renderer) + '</span>');
+  html.push('<span class="gp-seed-display">seed: <span id="gp-seed-val">' + state.seed + '</span></span>');
+  html.push('<button class="gp-reseed-btn" onclick="seedRandom()">&#x21bb; reseed</button>');
+  html.push('</div>');
+  html.push('</div>');
+
+  // Parameters
+  var params = sketch.parameters || [];
+  if (params.length > 0) {
+    html.push('<div class="gp-section">');
+    html.push('<div class="gp-section-title">Parameters</div>');
+    for (var i = 0; i < params.length; i++) {
+      var p = params[i];
+      var val = state.params[p.key] !== undefined ? state.params[p.key] : p.default;
+      html.push('<div class="gp-param-row">');
+      html.push('<span class="gp-param-label">' + esc(p.label) + '</span>');
+      html.push('<input type="range" class="gp-param-slider" id="gp-param-' + p.key + '" min="' + p.min + '" max="' + p.max + '" step="' + p.step + '" value="' + val + '" oninput="paramChange(\'' + p.key + '\', this.value)">');
+      html.push('<span class="gp-param-value" id="gp-param-val-' + p.key + '">' + val + '</span>');
+      html.push('</div>');
+    }
+    html.push('</div>');
+  }
+
+  // Colors
+  if (colorDefs.length > 0) {
+    html.push('<div class="gp-section">');
+    html.push('<div class="gp-section-title">Colors</div>');
+    for (var i = 0; i < colorDefs.length; i++) {
+      var c = colorDefs[i];
+      var cv = state.colorPalette[i] || c.default;
+      html.push('<div class="gp-color-row">');
+      html.push('<span class="gp-color-label">' + esc(c.label) + '</span>');
+      html.push('<input type="color" class="gp-color-input" id="gp-color-' + i + '" value="' + cv + '" onchange="colorChange(' + i + ', this.value)">');
+      html.push('</div>');
+    }
+    html.push('</div>');
+  }
+
+  // Themes
+  if (themes.length > 0) {
+    html.push('<div class="gp-section">');
+    html.push('<div class="gp-section-title">Themes</div>');
+    html.push('<select class="gp-theme-select" id="gp-theme" onchange="themeChange(this.value)">');
+    html.push('<option value="">Custom</option>');
+    for (var i = 0; i < themes.length; i++) {
+      html.push('<option value="' + i + '">' + esc(themes[i].name) + '</option>');
+    }
+    html.push('</select>');
+    html.push('</div>');
+  }
+
+  // Philosophy
+  if (sketch.philosophy) {
+    html.push('<div class="gp-section">');
+    html.push('<div class="gp-section-title">Philosophy</div>');
+    html.push('<div class="gp-philosophy">' + esc(sketch.philosophy) + '</div>');
+    html.push('</div>');
+  }
+
+  // File info
+  html.push('<div class="gp-section">');
+  html.push('<div class="gp-section-title">File</div>');
+  html.push('<div class="gp-info-grid">');
+  html.push('<span class="gp-info-key">id:</span><span class="gp-info-val">' + esc(sketch.id) + '</span>');
+  html.push('<span class="gp-info-key">renderer:</span><span class="gp-info-val">' + esc(rendererType) + '</span>');
+  html.push('<span class="gp-info-key">canvas:</span><span class="gp-info-val">' + sketch.canvas.width + ' &times; ' + sketch.canvas.height + '</span>');
+  html.push('<span class="gp-info-key">format:</span><span class="gp-info-val">genart ' + (sketch.genart || '1.1') + '</span>');
+  if (sketch.agent) {
+    html.push('<span class="gp-info-key">agent:</span><span class="gp-info-val">' + esc(sketch.agent) + '</span>');
+  }
+  html.push('</div>');
+  html.push('<button class="gp-copy-btn" onclick="copyState()">Copy State JSON</button>');
+  html.push('</div>');
+
+  panel.innerHTML = html.join('\n');
+  panel.style.display = 'flex';
+}
+
+// ---------------------------------------------------------------------------
+// Renderer setup
+// ---------------------------------------------------------------------------
+function setupRenderer() {
+  var area = document.getElementById('canvas-area');
+
+  switch (rendererType) {
+    case 'canvas2d': setupCanvas2D(area); break;
+    case 'p5':       setupP5(area); break;
+    case 'svg':      setupSVG(area); break;
+    case 'three':    setupThree(area); break;
+    case 'glsl':     setupGLSL(area); break;
+    default:
+      showError('Unsupported renderer', rendererType);
+  }
+}
+
+// --- Canvas 2D ---
+function setupCanvas2D(area) {
+  var w = sketch.canvas.width;
+  var h = sketch.canvas.height;
+  var pd = sketch.canvas.pixelDensity || 1;
+  var canvas = document.createElement('canvas');
+  canvas.id = 'canvas';
+  canvas.width = w * pd;
+  canvas.height = h * pd;
+  canvas.style.width = w + 'px';
+  canvas.style.height = h + 'px';
+  area.appendChild(canvas);
+
+  var componentCode = extractComponents(sketch.components);
+  var symbolCode = extractSymbols(sketch.symbols);
+  var algo = sketch.algorithm;
+
+  // Create function scope with components, symbols, and algorithm
+  var fnBody = componentCode + '\n' + symbolCode + '\n' + algo + '\n' +
+    'var ctx = document.getElementById("canvas").getContext("2d");\n' +
+    'ctx.setTransform(1, 0, 0, 1, 0, 0);\n' +
+    'ctx.clearRect(0, 0, ' + (w * pd) + ', ' + (h * pd) + ');\n' +
+    (pd !== 1 ? 'ctx.scale(' + pd + ', ' + pd + ');\n' : '') +
+    'var module = sketch(ctx, state);\n' +
+    'if (module && module.initializeSystem) module.initializeSystem();\n';
+
+  rerender = function() {
+    syncState();
+    try {
+      new Function('state', fnBody)(state);
+    } catch (e) {
+      console.error('Render error:', e);
+    }
+  };
+  rerender();
+}
+
+// --- p5 ---
+var p5Instance = null;
+function setupP5(area) {
+  var container = document.createElement('div');
+  container.id = 'canvas-container';
+  area.appendChild(container);
+
+  var componentCode = extractComponents(sketch.components);
+  var symbolCode = extractSymbols(sketch.symbols);
+
+  // Load p5.js from CDN then initialize
+  var script = document.createElement('script');
+  script.src = 'https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.11.3/p5.min.js';
+  script.onload = function() {
+    // Build the sketch function in scope with components
+    var fnBody = componentCode + '\n' + symbolCode + '\n' + sketch.algorithm + '\n' +
+      'return sketch;\n';
+    var sketchFactory = new Function('state', fnBody);
+
+    rerender = function() {
+      syncState();
+      // p5 uppercase aliases
+      state.SEED = state.seed;
+      state.PARAMS = state.params;
+      state.COLORS = {};
+      for (var i = 0; i < colorDefs.length; i++) {
+        state.COLORS[colorDefs[i].key] = state.colorPalette[i] || '#000000';
+      }
+
+      if (p5Instance) { p5Instance.remove(); p5Instance = null; }
+      container.innerHTML = '';
+      var sketchFn = sketchFactory(state);
+      p5Instance = new p5(function(p) { sketchFn(p, state); }, container);
+    };
+    rerender();
+  };
+  document.head.appendChild(script);
+}
+
+// --- SVG ---
+function setupSVG(area) {
+  var container = document.createElement('div');
+  container.id = 'svg-container';
+  area.appendChild(container);
+
+  var componentCode = extractComponents(sketch.components);
+  var symbolCode = extractSymbols(sketch.symbols);
+
+  var fnBody = componentCode + '\n' + symbolCode + '\n' + sketch.algorithm + '\n' +
+    'var module = sketch(state);\n' +
+    'return module.generate ? module.generate() : module.initializeSystem();\n';
+
+  rerender = function() {
+    syncState();
+    try {
+      var svgString = new Function('state', fnBody)(state);
+      container.innerHTML = svgString;
+    } catch (e) {
+      console.error('Render error:', e);
+    }
+  };
+  rerender();
+}
+
+// --- Three.js ---
+function setupThree(area) {
+  var container = document.createElement('div');
+  container.id = 'canvas-container';
+  container.style.width = sketch.canvas.width + 'px';
+  container.style.height = sketch.canvas.height + 'px';
+  area.appendChild(container);
+
+  var componentCode = extractComponents(sketch.components);
+  var symbolCode = extractSymbols(sketch.symbols);
+  var activeAnimId = null;
+
+  // Load Three.js from CDN as module
+  var script = document.createElement('script');
+  script.type = 'module';
+  script.textContent = [
+    "import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.172.0/build/three.module.min.js';",
+    "window.__THREE__ = THREE;",
+    "window.dispatchEvent(new Event('three-ready'));"
+  ].join('\n');
+  document.head.appendChild(script);
+
+  window.addEventListener('three-ready', function() {
+    rerender = function() {
+      syncState();
+      if (activeAnimId) cancelAnimationFrame(activeAnimId);
+      container.innerHTML = '';
+
+      var origRAF = window.requestAnimationFrame;
+      window.requestAnimationFrame = function(cb) {
+        activeAnimId = origRAF.call(window, cb);
+        return activeAnimId;
+      };
+
+      try {
+        var fnBody = 'var THREE = window.__THREE__;\n' + componentCode + '\n' + symbolCode + '\n' +
+          sketch.algorithm + '\n' +
+          'var module = sketch(THREE, state, document.getElementById("canvas-container"));\n' +
+          'if (module && module.initializeSystem) module.initializeSystem();\n';
+        new Function('state', fnBody)(state);
+      } catch (e) {
+        console.error('Render error:', e);
+      } finally {
+        window.requestAnimationFrame = origRAF;
+      }
+    };
+    rerender();
+  });
+}
+
+// --- GLSL ---
+function setupGLSL(area) {
+  var w = sketch.canvas.width;
+  var h = sketch.canvas.height;
+  var pd = sketch.canvas.pixelDensity || 1;
+  var canvas = document.createElement('canvas');
+  canvas.id = 'canvas';
+  canvas.width = w * pd;
+  canvas.height = h * pd;
+  canvas.style.width = w + 'px';
+  canvas.style.height = h + 'px';
+  area.appendChild(canvas);
+
+  var gl = canvas.getContext('webgl2', { preserveDrawingBuffer: true });
+  if (!gl) { showError('WebGL2 not supported', 'Your browser does not support WebGL2.'); return; }
+
+  // Prepare shader source
+  var glslComponents = '';
+  if (sketch.components) {
+    var keys = Object.keys(sketch.components);
+    for (var i = 0; i < keys.length; i++) {
+      var val = sketch.components[keys[i]];
+      if (typeof val !== 'string' && val && val.code) {
+        glslComponents += '// --- ' + keys[i] + ' ---\n' + val.code + '\n\n';
+      }
+    }
+  }
+  var fragSrc = glslComponents ? injectGLSL(sketch.algorithm, glslComponents) : sketch.algorithm;
+  var uniforms = extractGLSLUniforms(fragSrc);
+
+  var vertSrc = '#version 300 es\nin vec2 a_position;\nvoid main() { gl_Position = vec4(a_position, 0.0, 1.0); }';
+
+  function createShader(type, src) {
+    var s = gl.createShader(type);
+    gl.shaderSource(s, src);
+    gl.compileShader(s);
+    if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s));
+    return s;
+  }
+
+  var program = gl.createProgram();
+  gl.attachShader(program, createShader(gl.VERTEX_SHADER, vertSrc));
+  gl.attachShader(program, createShader(gl.FRAGMENT_SHADER, fragSrc));
+  gl.linkProgram(program);
+  if (!gl.getProgramParameter(program, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(program));
+
+  var positions = new Float32Array([-1,-1, 1,-1, -1,1, -1,1, 1,-1, 1,1]);
+  var buf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  gl.bufferData(gl.ARRAY_BUFFER, positions, gl.STATIC_DRAW);
+  var vao = gl.createVertexArray();
+  gl.bindVertexArray(vao);
+  var aPos = gl.getAttribLocation(program, 'a_position');
+  gl.enableVertexAttribArray(aPos);
+  gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
+  gl.bindVertexArray(null);
+
+  var startTime = performance.now();
+  var animId = null;
+
+  function renderFrame(time) {
+    gl.viewport(0, 0, canvas.width, canvas.height);
+    gl.useProgram(program);
+    gl.bindVertexArray(vao);
+
+    // Built-in uniforms
+    var loc;
+    loc = gl.getUniformLocation(program, 'u_resolution');
+    if (loc) gl.uniform2f(loc, w, h);
+    loc = gl.getUniformLocation(program, 'u_time');
+    if (loc) gl.uniform1f(loc, (time - startTime) / 1000.0);
+    loc = gl.getUniformLocation(program, 'u_seed');
+    if (loc) gl.uniform1f(loc, state.seed);
+
+    // Param uniforms
+    for (var i = 0; i < uniforms.params.length; i++) {
+      var u = uniforms.params[i];
+      var key = u.substring(2); // strip u_
+      loc = gl.getUniformLocation(program, u);
+      if (loc && state.params[key] !== undefined) gl.uniform1f(loc, state.params[key]);
+    }
+
+    // Color uniforms
+    for (var i = 0; i < uniforms.colors.length; i++) {
+      var u = uniforms.colors[i];
+      var idx = parseInt(u.replace('u_color', ''), 10) - 1;
+      loc = gl.getUniformLocation(program, u);
+      if (loc && state.colorPalette[idx]) {
+        var c = state.colorPalette[idx].replace('#', '');
+        gl.uniform3f(loc,
+          parseInt(c.substring(0, 2), 16) / 255,
+          parseInt(c.substring(2, 4), 16) / 255,
+          parseInt(c.substring(4, 6), 16) / 255
+        );
+      }
+    }
+
+    gl.drawArrays(gl.TRIANGLES, 0, 6);
+
+    // Continue animation if u_time is used
+    if (gl.getUniformLocation(program, 'u_time')) {
+      animId = requestAnimationFrame(renderFrame);
+    }
+  }
+
+  rerender = function() {
+    syncState();
+    if (animId) cancelAnimationFrame(animId);
+    startTime = performance.now();
+    renderFrame(startTime);
+  };
+  rerender();
+}
+
+// ---------------------------------------------------------------------------
+// Panel interaction handlers
+// ---------------------------------------------------------------------------
+function syncState() {
+  // Already mutated in place by handlers below
+}
+
+function seedRandom() {
+  state.seed = Math.floor(Math.random() * 100000);
+  document.getElementById('gp-seed-val').textContent = state.seed;
+  if (rerender) rerender();
+}
+
+function paramChange(key, val) {
+  var v = parseFloat(val);
+  state.params[key] = v;
+  document.getElementById('gp-param-' + key).value = v;
+  document.getElementById('gp-param-val-' + key).textContent = v;
+  if (rerender) rerender();
+}
+
+function colorChange(idx, val) {
+  state.colorPalette[idx] = val;
+  if (state.COLORS && colorDefs[idx]) state.COLORS[colorDefs[idx].key] = val;
+  var themeEl = document.getElementById('gp-theme');
+  if (themeEl) themeEl.value = '';
+  if (rerender) rerender();
+}
+
+function themeChange(val) {
+  if (val === '') return;
+  var theme = themes[parseInt(val, 10)];
+  if (!theme) return;
+  for (var i = 0; i < theme.colors.length; i++) {
+    state.colorPalette[i] = theme.colors[i];
+    var el = document.getElementById('gp-color-' + i);
+    if (el) el.value = theme.colors[i];
+    if (state.COLORS && colorDefs[i]) state.COLORS[colorDefs[i].key] = theme.colors[i];
+  }
+  if (rerender) rerender();
+}
+
+function copyState() {
+  var out = {
+    sketchId: sketch.id,
+    seed: state.seed,
+    params: Object.assign({}, state.params),
+    colors: state.colorPalette.slice()
+  };
+  var json = JSON.stringify(out, null, 2);
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(json).then(function() { showToast('State copied'); });
+  } else {
+    prompt('Copy state JSON:', json);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Utilities
+// ---------------------------------------------------------------------------
+function esc(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function showToast(msg) {
+  var el = document.getElementById('gp-toast');
+  el.textContent = msg;
+  el.style.opacity = '1';
+  setTimeout(function() { el.style.opacity = '0'; }, 2000);
+}
+
+function showError(title, msg) {
+  var area = document.getElementById('canvas-area');
+  var zone = document.getElementById('drop-zone');
+  if (zone) zone.style.display = 'none';
+  area.innerHTML = '<div class="gp-error"><div class="gp-error-title">' + esc(title) + '</div><div class="gp-error-msg">' + esc(msg) + '</div></div>';
+}
+</script>
+</body>
+</html>
