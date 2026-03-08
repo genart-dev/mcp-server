@@ -393,7 +393,7 @@ function registerSketchTools(server: McpServer, state: EditorState): void {
       algorithm: z
         .string()
         .optional()
-        .describe("Algorithm source code (default: renderer template). CRITICAL — state API differs by renderer (using the wrong casing will crash):\n  canvas2d: `function draw(ctx, state) { ... }` — state.canvas.width, state.canvas.height, state.seed, state.params.key, state.colorPalette[index] (hex). LOWERCASE only.\n  p5: `function sketch(p, state) { ... }` — state.WIDTH, state.HEIGHT, state.SEED, state.PARAMS.key, state.COLORS.key (hex). UPPERCASE only. Use p5 instance methods.\n  three/svg: same as canvas2d (lowercase).\n  glsl: uniforms auto-injected (u_resolution, u_seed, u_param_<key>, u_color_<index>), no state object."),
+        .describe("Algorithm source code (default: renderer template). All renderers use `function sketch(...)`. State API:\n  p5 (DEFAULT — always use unless user requests otherwise): `function sketch(p, state) { ... }` — state.canvas.width/height, state.seed, state.params.key, state.colorPalette[index]. Prefix all p5 calls with `p.`\n  canvas2d: `function sketch(ctx, state) { ... }` — same state API as p5.\n  three: `function sketch(THREE, state, container) { ... }`\n  svg: `function sketch(state) { ... }` — return SVG string.\n  glsl: uniforms auto-injected (u_resolution, u_seed, u_param_<key>, u_color_<index>), no state object.\n  Use `mulberry32(state.seed)` from the \"prng\" component — NEVER `Math.random()`."),
       seed: z.number().optional().describe("Initial random seed (default: random)"),
       skills: z.array(z.string()).optional().describe("Design skill references"),
       components: z
@@ -571,7 +571,7 @@ function registerSketchTools(server: McpServer, state: EditorState): void {
     "Replace the algorithm source code of a sketch. If adding/changing components, pass them in the components field alongside the algorithm. After updating, use preview_sketch to open an interactive preview in the browser.",
     {
       sketchId: z.string().describe("ID of the sketch to update"),
-      algorithm: z.string().describe("New algorithm source code. CRITICAL — state API differs by renderer (using the wrong casing will crash):\n  canvas2d: `function draw(ctx, state) { ... }` — state.canvas.width, state.canvas.height, state.seed, state.params.key, state.colorPalette[index] (hex). LOWERCASE only.\n  p5: `function sketch(p, state) { ... }` — state.WIDTH, state.HEIGHT, state.SEED, state.PARAMS.key, state.COLORS.key (hex). UPPERCASE only. Use p5 instance methods.\n  three/svg: same as canvas2d (lowercase).\n  glsl: uniforms auto-injected (u_resolution, u_seed, u_param_<key>, u_color_<index>), no state object."),
+      algorithm: z.string().describe("New algorithm source code. All renderers use `function sketch(...)`. State API:\n  p5: `function sketch(p, state) { ... }` — state.canvas.width/height, state.seed, state.params.key, state.colorPalette[index]. Prefix all p5 calls with `p.`\n  canvas2d: `function sketch(ctx, state) { ... }` — same state API as p5.\n  three: `function sketch(THREE, state, container) { ... }`\n  svg: `function sketch(state) { ... }` — return SVG string.\n  glsl: uniforms auto-injected (u_resolution, u_seed, u_param_<key>, u_color_<index>), no state object."),
       validate: z
         .boolean()
         .optional()
@@ -1238,7 +1238,7 @@ function registerSnapshotTools(server: McpServer, state: EditorState): void {
 function registerCaptureTools(server: McpServer, state: EditorState): void {
   server.tool(
     "capture_screenshot",
-    "Capture a screenshot of a sketch. Returns an inline JPEG image + metadata as text. In local mode, also writes a full-res PNG to snapshots/<sketchId>-<seed>-preview.png (path in savedPreviewTo).",
+    "Capture a screenshot of a sketch. Returns an inline JPEG image + metadata as text. In local mode, also writes a full-res PNG to snapshots/<sketchId>-<seed>-preview.png (path in savedPreviewTo).\n\nIMPORTANT TIMING: The capture waits only 500ms after page load. For animated p5 sketches that accumulate particles/lines over many frames, the screenshot may appear mostly empty. This is NORMAL — it does NOT mean the algorithm is broken. To verify animated sketches, use `preview_sketch` to open in the browser instead. Only use capture_screenshot for single-frame renderers (canvas2d) or after confirming the sketch works in the browser preview.",
     {
       target: z
         .enum(["selected", "sketch"])
