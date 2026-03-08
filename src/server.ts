@@ -409,6 +409,19 @@ function registerSketchTools(server: McpServer, state: EditorState): void {
         )
         .optional()
         .describe("Component dependencies. Use list_components to see available. Keys are component names, values are semver ranges (e.g. \"^1.0.0\") or objects with version/code/exports."),
+      data: z
+        .record(
+          z.object({
+            type: z.enum(["flow-field", "value-map", "palette-map", "custom"]).describe("Data type hint"),
+            source: z.enum(["component", "file", "inline"]).describe("Where the data comes from"),
+            component: z.string().optional().describe("Component name (for source='component')"),
+            config: z.record(z.unknown()).optional().describe("Config passed to component factory (for source='component')"),
+            path: z.string().optional().describe("Relative path to .genart-data file (for source='file')"),
+            value: z.unknown().optional().describe("Inline JSON data (for source='inline')"),
+          }),
+        )
+        .optional()
+        .describe("Data sources resolved before algorithm execution and injected as state.data.<key>. Use source='component' with a component factory, source='inline' for small JSON values, or source='file' for shared .genart-data files."),
       addToWorkspace: z
         .string()
         .optional()
@@ -538,6 +551,19 @@ function registerSketchTools(server: McpServer, state: EditorState): void {
         .describe("Replace theme presets"),
       seed: z.number().optional().describe("New random seed"),
       skills: z.array(z.string()).optional().describe("Replace design skill references"),
+      data: z
+        .record(
+          z.object({
+            type: z.enum(["flow-field", "value-map", "palette-map", "custom"]).describe("Data type hint"),
+            source: z.enum(["component", "file", "inline"]).describe("Where the data comes from"),
+            component: z.string().optional().describe("Component name (for source='component')"),
+            config: z.record(z.unknown()).optional().describe("Config passed to component factory"),
+            path: z.string().optional().describe("Relative path to .genart-data file"),
+            value: z.unknown().optional().describe("Inline JSON data"),
+          }),
+        )
+        .optional()
+        .describe("Replace data sources (injected as state.data.<key> before algorithm execution)"),
       agent: z.string().optional().describe("Your CLI agent name (e.g. 'claude-code', 'codex-cli', 'gemini-cli', 'opencode', 'kiro')"),
       model: z.string().optional().describe("Your AI model identifier (e.g. 'claude-opus-4-6', 'gpt-4o', 'gemini-2.5-pro')"),
       preview: z.boolean().optional().describe("When true, generate an interactive HTML preview with sliders/pickers/seed controls and open it in the browser"),
