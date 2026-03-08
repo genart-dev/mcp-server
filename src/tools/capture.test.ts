@@ -148,30 +148,30 @@ describe("capture tools", () => {
       expect(result.previewJpegBase64.length).toBeGreaterThan(0);
     });
 
-    it("auto-saves preview PNG in local mode", async () => {
+    it("auto-saves preview PNG to snapshots/ directory in local mode", async () => {
       await setupWorkspace(tmpDir, state);
       state.setSelection(["s1"]);
 
       const result = await captureScreenshot(state, {});
-      const expectedPath = join(tmpDir, "s1.png");
+      const expectedPath = join(tmpDir, "snapshots", "s1-42-preview.png");
       expect(result.metadata.previewPath).toBe(expectedPath);
       expect(result.metadata.savedPreviewTo).toBe(expectedPath);
-      expect(result.metadata.previewFileContent).toBeUndefined();
+      expect(result.metadata.previewWritten).toBe(true);
 
       // Verify file was written
       const content = await readFile(expectedPath);
       expect(content.length).toBeGreaterThan(0);
     });
 
-    it("skips preview file in remote mode (no disk write, no blob)", async () => {
+    it("skips preview file in remote mode (no disk write)", async () => {
       // Setup workspace in local mode first (loads sketches from disk), then enable remote
       await setupWorkspace(tmpDir, state);
       state.remoteMode = true;
       state.setSelection(["s1"]);
 
       const result = await captureScreenshot(state, {});
-      expect(result.metadata.previewFileContent).toBeUndefined();
       expect(result.metadata.savedPreviewTo).toBeUndefined();
+      expect(result.metadata.previewWritten).toBeUndefined();
     });
 
     it("captures a specific sketch by ID", async () => {
@@ -223,12 +223,24 @@ describe("capture tools", () => {
       expect(result.metadata.height).toBe(300);
     });
 
-    it("derives preview path from sketch path (.genart → .png)", async () => {
+    it("derives snapshot path as snapshots/<id>-<seed>-preview.png", async () => {
       await setupWorkspace(tmpDir, state);
       state.setSelection(["s1"]);
 
       const result = await captureScreenshot(state, {});
-      expect(result.metadata.previewPath).toBe(join(tmpDir, "s1.png"));
+      expect(result.metadata.previewPath).toBe(
+        join(tmpDir, "snapshots", "s1-42-preview.png"),
+      );
+    });
+
+    it("uses overridden seed in snapshot filename", async () => {
+      await setupWorkspace(tmpDir, state);
+      state.setSelection(["s1"]);
+
+      const result = await captureScreenshot(state, { seed: 99999 });
+      expect(result.metadata.previewPath).toBe(
+        join(tmpDir, "snapshots", "s1-99999-preview.png"),
+      );
     });
 
     it("rejects when nothing is selected (target=selected)", async () => {
@@ -315,27 +327,28 @@ describe("capture tools", () => {
       expect(item.inlineJpegBase64.length).toBeGreaterThan(0);
     });
 
-    it("auto-saves preview PNGs in local mode", async () => {
+    it("auto-saves preview PNGs to snapshots/ in local mode", async () => {
       await setupWorkspace(tmpDir, state);
 
       const result = await captureBatch(state, { sketchIds: ["s1"] });
       const item = result.items[0]!;
-      const expectedPath = join(tmpDir, "s1.png");
+      const expectedPath = join(tmpDir, "snapshots", "s1-42-preview.png");
       expect(item.metadata.previewPath).toBe(expectedPath);
       expect(item.metadata.savedPreviewTo).toBe(expectedPath);
+      expect(item.metadata.previewWritten).toBe(true);
 
       const content = await readFile(expectedPath);
       expect(content.length).toBeGreaterThan(0);
     });
 
-    it("skips preview file in remote mode (no blob)", async () => {
+    it("skips preview file in remote mode", async () => {
       await setupWorkspace(tmpDir, state);
       state.remoteMode = true;
 
       const result = await captureBatch(state, { sketchIds: ["s1"] });
       const item = result.items[0]!;
-      expect(item.metadata.previewFileContent).toBeUndefined();
       expect(item.metadata.savedPreviewTo).toBeUndefined();
+      expect(item.metadata.previewWritten).toBeUndefined();
     });
 
     it("applies global width/height override", async () => {

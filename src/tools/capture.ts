@@ -6,7 +6,9 @@
  * and a small JPEG for inline AI viewing via MCP native image blocks.
  */
 
-import { writeFile } from "fs/promises";
+import { exec } from "child_process";
+import { mkdir, writeFile } from "fs/promises";
+import { dirname, join } from "path";
 import {
   createDefaultRegistry,
   type SketchDefinition,
@@ -15,6 +17,23 @@ import { EditorState } from "../state.js";
 import { captureHtmlMulti, type MultiCaptureResult } from "../capture/headless.js";
 
 const registry = createDefaultRegistry();
+
+/** Open a file in the system viewer (macOS: Preview.app, Linux: xdg-open, Windows: start). */
+function openPreview(filePath: string): void {
+  const cmd =
+    process.platform === "darwin" ? "/usr/bin/open" :
+    process.platform === "win32" ? "start" :
+    "xdg-open";
+  console.error(`[openPreview] opening: ${filePath}`);
+  exec(`${cmd} "${filePath}"`, (err, _stdout, stderr) => {
+    if (err) {
+      console.error(`[openPreview] exec error: ${err.message}`);
+    }
+    if (stderr) {
+      console.error(`[openPreview] stderr: ${stderr}`);
+    }
+  });
+}
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -55,9 +74,14 @@ function generateSketchHtml(
   return adapter.generateStandaloneHTML(effective);
 }
 
-/** Derive the preview PNG path from a sketch file path: foo.genart → foo.png */
-function derivePreviewPath(sketchPath: string): string {
-  return sketchPath.replace(/\.genart$/, ".png");
+/** Derive the snapshot PNG path: <workspace-dir>/snapshots/<sketchId>-<seed>-preview.png */
+function deriveSnapshotPath(
+  sketchPath: string,
+  sketchId: string,
+  seed: number,
+): string {
+  const wsDir = dirname(sketchPath);
+  return join(wsDir, "snapshots", `${sketchId}-${seed}-preview.png`);
 }
 
 // ---------------------------------------------------------------------------
@@ -124,11 +148,12 @@ export async function captureScreenshot(
     });
 
     // Auto-save preview PNG and build metadata
-    const previewPath = derivePreviewPath(loaded.path);
+    const effectiveSeed = input.seed ?? sketch.state.seed;
+    const previewPath = deriveSnapshotPath(loaded.path, sketchId, effectiveSeed);
     const metadata = await buildScreenshotMetadata(state, multi, {
       target,
       sketchId,
-      seed: input.seed ?? sketch.state.seed,
+      seed: effectiveSeed,
       previewPath,
     });
 
@@ -150,6 +175,8 @@ async function buildScreenshotMetadata(
     sketchId: string;
     seed: number;
     previewPath: string;
+    /** Auto-open the preview in the system image viewer (default: true in local mode). */
+    autoOpen?: boolean;
   },
 ): Promise<Record<string, unknown>> {
   const metadata: Record<string, unknown> = {
@@ -163,9 +190,15 @@ async function buildScreenshotMetadata(
   };
 
   if (!state.remoteMode) {
-    // Local mode: write preview PNG directly to disk
+    // Local mode: ensure snapshots/ directory exists, then write preview PNG
+    await mkdir(dirname(info.previewPath), { recursive: true });
     await writeFile(info.previewPath, multi.previewPng);
     metadata.savedPreviewTo = info.previewPath;
+    metadata.previewWritten = true;
+    // Auto-open in system viewer so the user sees the render immediately
+    if (info.autoOpen !== false) {
+      openPreview(info.previewPath);
+    }
   }
   // Remote mode: skip preview file — the inline JPEG image block is sufficient
   // for AI analysis, and shuttling a full PNG as base64 text wastes tokens.
@@ -235,12 +268,14 @@ export async function captureBatch(
         inlineSize,
       });
 
-      const previewPath = derivePreviewPath(loaded.path);
+      const effectiveSeed = input.seed ?? sketch.state.seed;
+      const previewPath = deriveSnapshotPath(loaded.path, id, effectiveSeed);
       const itemMetadata = await buildScreenshotMetadata(state, multi, {
         target: "sketch",
         sketchId: id,
-        seed: input.seed ?? sketch.state.seed,
+        seed: effectiveSeed,
         previewPath,
+        autoOpen: false, // Don't flood windows for batch captures
       });
 
       items.push({

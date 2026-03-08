@@ -1,32 +1,11 @@
 /**
  * Headless capture — renders a standalone HTML page to a PNG screenshot
  * using Puppeteer's headless Chrome.
- *
- * Puppeteer is an optional peer dependency. If not installed, capture
- * functions will throw a clear error message.
  */
 
-type PuppeteerModule = typeof import("puppeteer");
-type Browser = Awaited<ReturnType<PuppeteerModule["launch"]>>;
+import puppeteer from "puppeteer";
 
-/** Cached puppeteer default export (loaded on first use). */
-let cachedModule: PuppeteerModule | null = null;
-
-/** Dynamically load puppeteer (optional peer dep). */
-async function loadPuppeteer(): Promise<PuppeteerModule> {
-  if (!cachedModule) {
-    try {
-      // Dynamic import returns { default: puppeteer } for CJS interop
-      const mod = await import("puppeteer") as { default?: PuppeteerModule } & PuppeteerModule;
-      cachedModule = mod.default ?? mod;
-    } catch {
-      throw new Error(
-        "Puppeteer is required for screenshot capture. Install it with: npm install puppeteer",
-      );
-    }
-  }
-  return cachedModule;
-}
+type Browser = Awaited<ReturnType<typeof puppeteer.launch>>;
 
 /** Options for capturing a screenshot of an HTML page. */
 export interface CaptureOptions {
@@ -76,7 +55,6 @@ async function getBrowser(): Promise<Browser> {
   if (browserInstance && browserInstance.connected) {
     return browserInstance;
   }
-  const puppeteer = await loadPuppeteer();
   browserInstance = await puppeteer.launch({
     headless: true,
     executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
