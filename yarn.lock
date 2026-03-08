@@ -36,10 +36,10 @@
     "@genart-dev/components" "^0.1.0"
     "@genart-dev/format" "^0.3.0"
 
-"@genart-dev/core@^0.6.0":
-  version "0.6.0"
-  resolved "https://registry.npmjs.org/@genart-dev/core/-/core-0.6.0.tgz"
-  integrity sha512-Gs9XFEDFskMgYXpevts8ucXg4bcJ4n1UMsTX6mX5nIy6u7P3Kt4SmV3Me0N1VYTK28EKL6+dPZrxy1ibFlQhZg==
+"@genart-dev/core@^0.6.0", "@genart-dev/core@^0.6.4":
+  version "0.6.4"
+  resolved "https://registry.npmjs.org/@genart-dev/core/-/core-0.6.4.tgz"
+  integrity sha512-otG43ZpfMQ/YuIjHA5bBgqtTRlu1w+IqSKUUKa26jukf0EnkMKU9HaMe+g0M9x08eJ64NuqexLq+mNRsvvzSkg==
   dependencies:
     "@genart-dev/components" "^0.1.0"
     "@genart-dev/format" "^0.5.0"

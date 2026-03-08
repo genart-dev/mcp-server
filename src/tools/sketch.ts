@@ -4,7 +4,7 @@
  * save_sketch, fork_sketch, delete_sketch
  */
 
-import { readFile, writeFile, stat, unlink } from "fs/promises";
+import { mkdir, readFile, writeFile, stat, unlink } from "fs/promises";
 import { basename, dirname, resolve } from "path";
 import {
   createDefaultRegistry,
@@ -136,6 +136,7 @@ export interface CreateSketchInput {
   addToWorkspace?: string;
   agent?: string;
   model?: string;
+  capture?: boolean;
 }
 
 export async function createSketch(
@@ -244,6 +245,7 @@ export async function createSketch(
 
   // Write to disk in local mode
   if (!state.remoteMode) {
+    await mkdir(dirname(absPath), { recursive: true });
     await writeFile(absPath, json, "utf-8");
   }
 
@@ -251,13 +253,14 @@ export async function createSketch(
   state.sketches.set(input.id, { definition: sketch, path: absPath });
   state.emitMutation("sketch:created", { id: input.id, path: absPath });
 
-  // In remote sessions, auto-manage the workspace so every sketch is visible
-  // in the editor without requiring explicit workspace tools.
-  if (state.remoteMode && !input.addToWorkspace) {
+  // Auto-manage the workspace so every sketch is visible in the editor
+  // and preview_sketch can find the workspace directory for HTML previews.
+  if (!input.addToWorkspace) {
     const file = basename(absPath);
     if (!state.workspace) {
       // Auto-create a workspace for the first sketch in this session
       const ts = now();
+      const wsPath = resolve(dirname(absPath), "workspace.genart-workspace");
       state.workspace = {
         "genart-workspace": "1.0",
         id: "session",
@@ -267,7 +270,11 @@ export async function createSketch(
         viewport: { x: 0, y: 0, zoom: 1 },
         sketches: [{ file, position: { x: 0, y: 0 } }],
       };
-      state.workspacePath = state.resolvePath("workspace.genart-workspace");
+      state.workspacePath = wsPath;
+      // In local mode, persist the workspace file
+      if (!state.remoteMode) {
+        await writeFile(wsPath, serializeWorkspace(state.workspace), "utf-8");
+      }
       state.emitMutation("workspace:loaded", { path: state.workspacePath, title: state.workspace.title });
     } else {
       // Add to the existing auto-created workspace
@@ -281,6 +288,10 @@ export async function createSketch(
         modified: now(),
         sketches: [...state.workspace.sketches, { file, position: { x: maxRight + 200, y: 0 } }],
       };
+      // In local mode, persist the workspace update
+      if (!state.remoteMode && state.workspacePath) {
+        await writeFile(state.workspacePath, serializeWorkspace(state.workspace), "utf-8");
+      }
       state.emitMutation("workspace:updated", { added: file });
     }
   }
@@ -326,7 +337,8 @@ export async function createSketch(
     renderer: rendererType,
     canvas: canvasDims,
     seed,
-    fileContent: json,
+    // Only include file content in remote mode (Claude Code needs it to write files locally)
+    ...(state.remoteMode ? { fileContent: json } : {}),
     ...(workspaceContent ? { workspaceContent } : {}),
   };
 }
@@ -472,7 +484,7 @@ export async function updateSketch(
     parameterCount: newDef.parameters.length,
     colorCount: newDef.colors.length,
     seed: newDef.state.seed,
-    fileContent: json,
+    ...(state.remoteMode ? { fileContent: json } : {}),
   };
 }
 
@@ -583,7 +595,7 @@ export async function updateAlgorithm(
     algorithmLength: input.algorithm.length,
     validationPassed,
     ...(hasNewComponents ? { componentsUpdated: true } : {}),
-    fileContent: json,
+    ...(state.remoteMode ? { fileContent: json } : {}),
   };
 }
 
@@ -621,7 +633,7 @@ export async function saveSketch(
     success: true,
     sketchId: input.sketchId,
     path: loaded.path,
-    fileContent: json,
+    ...(state.remoteMode ? { fileContent: json } : {}),
   };
 }
 
@@ -781,8 +793,7 @@ export async function forkSketch(
       seed,
       position,
     },
-    fileContent: json,
-    workspaceContent: workspaceJson,
+    ...(state.remoteMode ? { fileContent: json, workspaceContent: workspaceJson } : {}),
   };
 }
 

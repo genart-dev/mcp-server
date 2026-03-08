@@ -340,11 +340,11 @@ function registerWorkspaceTools(server: McpServer, state: EditorState): void {
 function registerSketchTools(server: McpServer, state: EditorState): void {
   server.tool(
     "create_sketch",
-    "Create a new .genart sketch file from metadata, parameters, and algorithm. IMPORTANT: Do not embed common utilities (PRNG, noise, easing, color math, vector ops) inline in the algorithm. Instead, declare them as components: { \"prng\": \"^1.0.0\", \"noise-2d\": \"^1.0.0\" }. Then use the exported functions directly in your algorithm (e.g., mulberry32, fbm2D). Use list_components to see all available components for the current renderer.",
+    "Create a new .genart sketch file from metadata, parameters, and algorithm. Saves to disk, auto-creates an in-memory workspace, and opens an interactive browser preview with sliders/pickers/seed controls. Save sketches to ~/.genart/sketches/<id>.genart (directory auto-created). Do NOT present the .genart file to the user — it has no OS file association. IMPORTANT: Do not embed common utilities (PRNG, noise, easing, color math, vector ops) inline in the algorithm. Instead, declare them as components: { \"prng\": \"^1.0.0\", \"noise-2d\": \"^1.0.0\" }. Then use the exported functions directly in your algorithm (e.g., mulberry32, fbm2D). Use list_components to see all available components for the current renderer.",
     {
       id: z.string().describe("URL-safe kebab-case identifier"),
       title: z.string().describe("Human-readable title"),
-      path: z.string().describe("Relative file path (must end in .genart, e.g. 'my-sketch.genart')"),
+      path: z.string().describe("File path ending in .genart. Use ~/.genart/sketches/<id>.genart as the default location (directory is auto-created). Example: '~/.genart/sketches/ocean-currents.genart'"),
       renderer: z
         .enum(["p5", "three", "glsl", "canvas2d", "svg"])
         .optional()
@@ -393,7 +393,7 @@ function registerSketchTools(server: McpServer, state: EditorState): void {
       algorithm: z
         .string()
         .optional()
-        .describe("Algorithm source code (default: renderer template). For p5: must be `function sketch(p, state) { ... }` in instance mode. State provides: state.WIDTH, state.HEIGHT, state.SEED (number), state.PARAMS (keyed by param key), state.COLORS (keyed by color key, hex strings). Use p5 instance methods (p.createCanvas, p.background, etc)."),
+        .describe("Algorithm source code (default: renderer template). CRITICAL — state API differs by renderer (using the wrong casing will crash):\n  canvas2d: `function draw(ctx, state) { ... }` — state.canvas.width, state.canvas.height, state.seed, state.params.key, state.colorPalette[index] (hex). LOWERCASE only.\n  p5: `function sketch(p, state) { ... }` — state.WIDTH, state.HEIGHT, state.SEED, state.PARAMS.key, state.COLORS.key (hex). UPPERCASE only. Use p5 instance methods.\n  three/svg: same as canvas2d (lowercase).\n  glsl: uniforms auto-injected (u_resolution, u_seed, u_param_<key>, u_color_<index>), no state object."),
       seed: z.number().optional().describe("Initial random seed (default: random)"),
       skills: z.array(z.string()).optional().describe("Design skill references"),
       components: z
@@ -416,11 +416,12 @@ function registerSketchTools(server: McpServer, state: EditorState): void {
       agent: z.string().optional().describe("Your CLI agent name (e.g. 'claude-code', 'codex-cli', 'gemini-cli', 'opencode', 'kiro')"),
       model: z.string().optional().describe("Your AI model identifier (e.g. 'claude-opus-4-6', 'gpt-4o', 'gemini-2.5-pro')"),
       capture: z.boolean().optional().describe("When true, automatically capture a screenshot after creation and return it inline (avoids a separate capture_screenshot call)"),
-      preview: z.boolean().optional().describe("When true, generate an interactive HTML preview with sliders/pickers/seed controls and open it in the browser"),
+      preview: z.boolean().optional().describe("Generate an interactive HTML preview with sliders/pickers/seed controls and open it in the browser (default: true). Set to false to skip."),
     },
     async (args) => {
       try {
         const result = await createSketch(state, args);
+        const shouldPreview = args.preview !== false; // default true
 
         // If capture requested and we're in local mode (capture tools available),
         // run headless capture and return image inline with metadata.
@@ -452,16 +453,11 @@ function registerSketchTools(server: McpServer, state: EditorState): void {
           }
         }
 
-        // If preview requested, generate interactive HTML and open in browser.
-        if (args.preview) {
+        // Preview is on by default — generate interactive HTML and open in browser.
+        if (shouldPreview) {
           try {
             const previewResult = await previewSketch(state, { sketchId: args.id });
-            return {
-              content: [
-                { type: "text" as const, text: JSON.stringify({ ...result, preview: previewResult.metadata }, null, 2) },
-                { type: "text" as const, text: previewResult.html },
-              ],
-            };
+            return jsonResult({ ...result, preview: previewResult.metadata });
           } catch (previewErr) {
             return jsonResult({
               ...result,
@@ -554,12 +550,7 @@ function registerSketchTools(server: McpServer, state: EditorState): void {
         if (args.preview) {
           try {
             const previewResult = await previewSketch(state, { sketchId: args.sketchId });
-            return {
-              content: [
-                { type: "text" as const, text: JSON.stringify({ ...result, preview: previewResult.metadata }, null, 2) },
-                { type: "text" as const, text: previewResult.html },
-              ],
-            };
+            return jsonResult({ ...result, preview: previewResult.metadata });
           } catch (previewErr) {
             return jsonResult({
               ...result,
@@ -577,10 +568,10 @@ function registerSketchTools(server: McpServer, state: EditorState): void {
 
   server.tool(
     "update_algorithm",
-    "Replace the algorithm source code of a sketch. If adding/changing components, pass them in the components field alongside the algorithm.",
+    "Replace the algorithm source code of a sketch. If adding/changing components, pass them in the components field alongside the algorithm. After updating, use preview_sketch to open an interactive preview in the browser.",
     {
       sketchId: z.string().describe("ID of the sketch to update"),
-      algorithm: z.string().describe("New algorithm source code. For p5: must be `function sketch(p, state) { ... }` in instance mode. State provides: state.WIDTH, state.HEIGHT, state.SEED, state.PARAMS (keyed by param key), state.COLORS (keyed by color key)."),
+      algorithm: z.string().describe("New algorithm source code. CRITICAL — state API differs by renderer (using the wrong casing will crash):\n  canvas2d: `function draw(ctx, state) { ... }` — state.canvas.width, state.canvas.height, state.seed, state.params.key, state.colorPalette[index] (hex). LOWERCASE only.\n  p5: `function sketch(p, state) { ... }` — state.WIDTH, state.HEIGHT, state.SEED, state.PARAMS.key, state.COLORS.key (hex). UPPERCASE only. Use p5 instance methods.\n  three/svg: same as canvas2d (lowercase).\n  glsl: uniforms auto-injected (u_resolution, u_seed, u_param_<key>, u_color_<index>), no state object."),
       validate: z
         .boolean()
         .optional()
@@ -857,15 +848,23 @@ function registerSelectionTools(server: McpServer, state: EditorState): void {
 
   server.tool(
     "set_working_directory",
-    "Set the working directory for file operations. All paths are resolved relative to this directory.",
+    "Set the working directory for file operations. All paths are resolved relative to this directory. Supports ~ for home directory. Creates the directory if it doesn't exist.",
     {
-      path: z.string().describe("Absolute path to use as the working directory"),
+      path: z.string().describe("Path to use as the working directory (supports ~ for home dir)"),
     },
     async (args) => {
       try {
-        const dir = args.path;
+        const { homedir } = await import("node:os");
+        const { mkdirSync, existsSync } = await import("node:fs");
+        let dir = args.path;
+        if (dir.startsWith("~/") || dir === "~") {
+          dir = dir.replace("~", homedir());
+        }
         if (!dir.startsWith("/")) {
-          return toolError("Path must be absolute");
+          return toolError("Path must be absolute (or start with ~)");
+        }
+        if (!existsSync(dir)) {
+          mkdirSync(dir, { recursive: true });
         }
         state.setBasePath(dir);
         return jsonResult({ success: true, workingDirectory: dir });
@@ -1789,7 +1788,7 @@ function registerExportTools(server: McpServer, state: EditorState): void {
 function registerPreviewTools(server: McpServer, state: EditorState): void {
   server.tool(
     "preview_sketch",
-    "Generate an interactive HTML preview with parameter sliders, color pickers, and seed controls. Returns the HTML content for artifact display and also opens it in the browser.",
+    "Open an interactive HTML preview of a sketch in the browser with parameter sliders, color pickers, and seed controls. Call this after update_algorithm to let the user explore changes interactively. Preview already opens automatically on create_sketch — only call this for re-previewing after updates.",
     {
       sketchId: z.string().describe("ID of the sketch to preview"),
       seed: z
@@ -1804,12 +1803,7 @@ function registerPreviewTools(server: McpServer, state: EditorState): void {
     async (args) => {
       try {
         const result = await previewSketch(state, args);
-        return {
-          content: [
-            { type: "text" as const, text: JSON.stringify(result.metadata, null, 2) },
-            { type: "text" as const, text: result.html },
-          ],
-        };
+        return jsonResult(result.metadata);
       } catch (e) {
         return toolError(e instanceof Error ? e.message : String(e));
       }
