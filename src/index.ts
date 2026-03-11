@@ -33,6 +33,15 @@ async function main(): Promise<void> {
   const state = new EditorState();
   const server = createServer(state, { captureOnly });
 
+  // Wait for plugin registry initialization so all design_* tools
+  // are registered before the client connects and lists tools.
+  const pluginsReady = (
+    server as typeof server & { _pluginsReady?: Promise<void> }
+  )._pluginsReady;
+  if (pluginsReady) {
+    await pluginsReady;
+  }
+
   const transport = new StdioServerTransport();
   await server.connect(transport);
 

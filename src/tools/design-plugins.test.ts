@@ -11,6 +11,7 @@ import typographyPlugin from "@genart-dev/plugin-typography";
 import filtersPlugin from "@genart-dev/plugin-filters";
 import shapesPlugin from "@genart-dev/plugin-shapes";
 import layoutGuidesPlugin from "@genart-dev/plugin-layout-guides";
+import identityPlugin from "@genart-dev/plugin-identity";
 import { EditorState } from "../state.js";
 import { createWorkspace } from "./workspace.js";
 
@@ -50,6 +51,7 @@ describe("plugin registration", () => {
     await registry.register(filtersPlugin);
     await registry.register(shapesPlugin);
     await registry.register(layoutGuidesPlugin);
+    await registry.register(identityPlugin);
     state.pluginRegistry = registry;
 
     // Create workspace with sketch
@@ -71,14 +73,15 @@ describe("plugin registration", () => {
   // Plugin registration
   // -----------------------------------------------------------------------
 
-  it("registers all 4 free plugins", () => {
+  it("registers all 5 free plugins", () => {
     const plugins = registry.getAll();
-    expect(plugins).toHaveLength(4);
+    expect(plugins).toHaveLength(5);
     const ids = plugins.map((p) => p.id);
     expect(ids).toContain("typography");
     expect(ids).toContain("filters");
     expect(ids).toContain("shapes");
     expect(ids).toContain("layout-guides");
+    expect(ids).toContain("identity");
   });
 
   it("rejects duplicate plugin registration", async () => {
@@ -99,20 +102,25 @@ describe("plugin registration", () => {
       }
     });
 
-    it("produces 19 MCP tools total", () => {
+    it("produces 34 MCP tools total", () => {
       const tools = registry.getMcpTools();
-      expect(tools).toHaveLength(19);
+      expect(tools).toHaveLength(34);
     });
 
     it("includes all typography tools", () => {
       const tools = registry.getMcpTools();
       const typoTools = tools.filter((t) => t.pluginId === "typography");
-      expect(typoTools).toHaveLength(4);
+      expect(typoTools).toHaveLength(9);
       const names = typoTools.map((t) => t.name);
       expect(names).toContain("design_set_text");
       expect(names).toContain("design_apply_text_style");
       expect(names).toContain("design_list_fonts");
       expect(names).toContain("design_set_text_shadow");
+      expect(names).toContain("design_set_type_scale");
+      expect(names).toContain("design_get_font_metrics");
+      expect(names).toContain("design_analyze_text_spacing");
+      expect(names).toContain("design_convert_text_to_paths");
+      expect(names).toContain("design_load_custom_font");
     });
 
     it("includes all filter tools", () => {
@@ -157,9 +165,9 @@ describe("plugin registration", () => {
   // -----------------------------------------------------------------------
 
   describe("layer type resolution", () => {
-    it("resolves all 16 layer types", () => {
+    it("resolves all 20 layer types", () => {
       const types = registry.getLayerTypes();
-      expect(types).toHaveLength(16);
+      expect(types).toHaveLength(20);
     });
 
     it("resolves typography:text", () => {

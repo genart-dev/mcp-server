@@ -22,6 +22,7 @@ import {
   type SketchDefinition,
   type SketchState,
   type ThemeDef,
+  type AlgorithmDataChannel,
 } from "@genart-dev/core";
 import { EditorState } from "../state.js";
 
@@ -135,6 +136,7 @@ export interface CreateSketchInput {
   skills?: string[];
   components?: Record<string, string | { version?: string; code?: string; exports?: string[] }>;
   data?: Record<string, SketchDataSource>;
+  dataChannels?: AlgorithmDataChannel[];
   addToWorkspace?: string;
   agent?: string;
   model?: string;
@@ -239,6 +241,7 @@ export async function createSketch(
       : {}),
     ...(hasComponents ? { components: resolvedComponents } : {}),
     ...(input.data && Object.keys(input.data).length > 0 ? { data: input.data } : {}),
+    ...(input.dataChannels && input.dataChannels.length > 0 ? { dataChannels: input.dataChannels } : {}),
     ...(input.agent ? { agent: input.agent } : {}),
     ...(input.model ? { model: input.model } : {}),
   };
@@ -395,6 +398,7 @@ export interface UpdateSketchInput {
   seed?: number;
   skills?: string[];
   data?: Record<string, SketchDataSource>;
+  dataChannels?: AlgorithmDataChannel[];
   agent?: string;
   model?: string;
 }
@@ -417,6 +421,7 @@ export async function updateSketch(
     "seed",
     "skills",
     "data",
+    "dataChannels",
   ] as const;
 
   const updated: string[] = [];
@@ -428,7 +433,7 @@ export async function updateSketch(
 
   if (updated.length === 0) {
     throw new Error(
-      "No fields to update. Provide at least one of: title, philosophy, canvas, parameters, colors, themes, seed, skills, data",
+      "No fields to update. Provide at least one of: title, philosophy, canvas, parameters, colors, themes, seed, skills, data, dataChannels",
     );
   }
 
@@ -466,6 +471,7 @@ export async function updateSketch(
       : {}),
     ...(input.skills !== undefined ? { skills: input.skills } : {}),
     ...(input.data !== undefined ? { data: input.data } : {}),
+    ...(input.dataChannels !== undefined ? { dataChannels: input.dataChannels } : {}),
     ...(input.agent ? { agent: input.agent } : {}),
     ...(input.model ? { model: input.model } : {}),
   };

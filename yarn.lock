@@ -36,7 +36,7 @@
     "@genart-dev/components" "^0.1.0"
     "@genart-dev/format" "^0.3.0"
 
-"@genart-dev/core@^0.6.0", "@genart-dev/core@^0.6.4":
+"@genart-dev/core@^0.6.0", "@genart-dev/core@^0.6.1", "@genart-dev/core@^0.6.4":
   version "0.6.4"
   resolved "https://registry.npmjs.org/@genart-dev/core/-/core-0.6.4.tgz"
   integrity sha512-otG43ZpfMQ/YuIjHA5bBgqtTRlu1w+IqSKUUKa26jukf0EnkMKU9HaMe+g0M9x08eJ64NuqexLq+mNRsvvzSkg==
@@ -50,14 +50,14 @@
   integrity sha512-zSeFfrJ9t8nZ/093b+0XLb8VElSSW3tx1hQZJSRsRlkupxByCbERde6kMvxH6USBuZ3truEanIIOrWDXB+PnRQ==
 
 "@genart-dev/format@^0.3.0":
-  version "0.3.0"
-  resolved "https://registry.npmjs.org/@genart-dev/format/-/format-0.3.0.tgz"
-  integrity sha512-j9dlH1qnGJGSz8HB8Fg4s8SDeWbKtX9t5n9pBY4XdQKfz3q7yFJtKUvmVblOwyKRx/WZRhjL5Xt331icruubjA==
+  version "0.3.1"
+  resolved "https://registry.npmjs.org/@genart-dev/format/-/format-0.3.1.tgz"
+  integrity sha512-T1yLndGXoeO69+JENM4WoNnTD+YfznFSrHU3YKjygw20FAiuKNX+M4Na8zuiFn8u5VZgKJd2PkBXKIogRzI1+A==
 
 "@genart-dev/format@^0.5.0":
-  version "0.5.0"
-  resolved "https://registry.npmjs.org/@genart-dev/format/-/format-0.5.0.tgz"
-  integrity sha512-OvLGMlXzF7timMxx0/Bp9v3b57kmoEJ6PiVV9rjrDeLM8sImngS98Wj5tGmOTK9C+Ynxu+SQ/WCgVfmxz2lBGw==
+  version "0.5.3"
+  resolved "https://registry.npmjs.org/@genart-dev/format/-/format-0.5.3.tgz"
+  integrity sha512-x+PJRu1TXpX6/X0d3O9Y348FXpTCS5giPRNCaHY1mA7tN8SM5Xk3ip/TUDgQ6IUkd4S/NaD6EBqK6TNptiQJXw==
 
 "@genart-dev/plugin-animation@^0.1.0":
   version "0.1.0"
@@ -108,6 +108,13 @@
   dependencies:
     "@genart-dev/core" "^0.3.0"
 
+"@genart-dev/plugin-identity@^0.1.0":
+  version "0.1.0"
+  resolved "https://registry.npmjs.org/@genart-dev/plugin-identity/-/plugin-identity-0.1.0.tgz"
+  integrity sha512-vHyd3JXQ/ACaCZxGwVas/hkz8vtsY8ga7KhctNbrVUAB3eDucBWqpf5of5qgra9lwCSeLI6s1ZkKJrBBcOmF5w==
+  dependencies:
+    "@genart-dev/core" "^0.6.1"
+
 "@genart-dev/plugin-layout-composition@^0.1.0":
   version "0.1.0"
   resolved "https://registry.npmjs.org/@genart-dev/plugin-layout-composition/-/plugin-layout-composition-0.1.0.tgz"
@@ -122,9 +129,10 @@
   dependencies:
     "@genart-dev/core" "^0.3.0"
 
-"@genart-dev/plugin-painting@^0.1.0":
-  version "0.1.2"
-  resolved "file:../plugin-painting"
+"@genart-dev/plugin-painting@^0.2.0":
+  version "0.2.0"
+  resolved "https://registry.npmjs.org/@genart-dev/plugin-painting/-/plugin-painting-0.2.0.tgz"
+  integrity sha512-ZVRHa/S+HCknn5ys5S8a2oMeRhQwCTi+4Ze7+c+OdK5qFnK8CG5KbCeNpak8y0jxJZntHXCqgE7rOWT2xwCJuA==
   dependencies:
     "@genart-dev/core" "^0.3.0"
     canvas "^3.2.1"
@@ -178,12 +186,13 @@
   dependencies:
     "@genart-dev/core" "^0.6.0"
 
-"@genart-dev/plugin-typography@^0.1.0":
-  version "0.1.0"
-  resolved "https://registry.npmjs.org/@genart-dev/plugin-typography/-/plugin-typography-0.1.0.tgz"
-  integrity sha512-h34ZAuVHqZJoGzW6euN8r2rPepGR0ca9V0ai0zyXLAyD1648VeNCsR4/Q9Eq7UBCYlkCKejP/2Vq3clHUHDUkw==
+"@genart-dev/plugin-typography@^0.2.0", "@genart-dev/plugin-typography@>=0.2.0":
+  version "0.2.0"
+  resolved "https://registry.npmjs.org/@genart-dev/plugin-typography/-/plugin-typography-0.2.0.tgz"
+  integrity sha512-TtYD90Tmnnxm9qNUKjrWREWYMyXGsjsdiVnLJ/5yUZ4/LkBFu2qCVE5B9T0XHld3dxYFet9O4EbnJERyI6hasg==
   dependencies:
-    "@genart-dev/core" "^0.3.0"
+    "@genart-dev/core" "^0.6.1"
+    opentype.js "^1.3.4"
 
 "@genart-dev/styles@^0.1.0":
   version "0.1.0"
@@ -1645,6 +1654,14 @@ once@^1.3.1, once@^1.4.0:
   dependencies:
     wrappy "1"
 
+opentype.js@^1.3.4:
+  version "1.3.4"
+  resolved "https://registry.npmjs.org/opentype.js/-/opentype.js-1.3.4.tgz"
+  integrity sha512-d2JE9RP/6uagpQAVtJoF0pJJA/fgai89Cc50Yp0EJHk+eLp6QQ7gBoblsnubRULNY132I0J1QKMJ+JTbMqz4sw==
+  dependencies:
+    string.prototype.codepointat "^0.2.1"
+    tiny-inflate "^1.0.3"
+
 pac-proxy-agent@^7.1.0:
   version "7.2.0"
   resolved "https://registry.npmjs.org/pac-proxy-agent/-/pac-proxy-agent-7.2.0.tgz"
@@ -2255,6 +2272,11 @@ string-width@^5.0.1, string-width@^5.1.2:
     emoji-regex "^9.2.2"
     strip-ansi "^7.0.1"
 
+string.prototype.codepointat@^0.2.1:
+  version "0.2.1"
+  resolved "https://registry.npmjs.org/string.prototype.codepointat/-/string.prototype.codepointat-0.2.1.tgz"
+  integrity sha512-2cBVCj6I4IOvEnjgO/hWqXjqBGsY+zwPmHl12Srk9IXSZ56Jwwmy+66XO5Iut/oQVR7t5ihYdLB0GMa4alEUcg==
+
 "strip-ansi-cjs@npm:strip-ansi@^6.0.1":
   version "6.0.1"
   resolved "https://registry.npmjs.org/strip-ansi/-/strip-ansi-6.0.1.tgz"
@@ -2369,6 +2391,11 @@ thenify-all@^1.0.0:
   integrity sha512-RVZSIV5IG10Hk3enotrhvz0T9em6cyHBLkH/YAZuKqd8hRkKhSfCGIcP2KUY0EPxndzANBmNllzWPwak+bheSw==
   dependencies:
     any-promise "^1.0.0"
+
+tiny-inflate@^1.0.3:
+  version "1.0.3"
+  resolved "https://registry.npmjs.org/tiny-inflate/-/tiny-inflate-1.0.3.tgz"
+  integrity sha512-pkY1fj1cKHb2seWDy0B16HeWyczlJA9/WW3u3c4z/NiWDsO3DOU5D7nhTLE9CF0yXv/QZFY7sEJmj24dK+Rrqw==
 
 tinybench@^2.9.0:
   version "2.9.0"

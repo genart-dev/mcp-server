@@ -24,6 +24,7 @@ import posesPlugin from "@genart-dev/plugin-poses";
 import stylesPlugin from "@genart-dev/plugin-styles";
 import symbolsPlugin from "@genart-dev/plugin-symbols";
 import tracePlugin from "@genart-dev/plugin-trace";
+import identityPlugin from "@genart-dev/plugin-identity";
 import { EditorState } from "./state.js";
 import {
   createWorkspace,
@@ -146,6 +147,7 @@ async function initializePluginRegistry(): Promise<PluginRegistry> {
   await registry.register(stylesPlugin);
   await registry.register(symbolsPlugin);
   await registry.register(tracePlugin);
+  await registry.register(identityPlugin);
 
   return registry;
 }
@@ -393,7 +395,7 @@ function registerSketchTools(server: McpServer, state: EditorState): void {
       algorithm: z
         .string()
         .optional()
-        .describe("Algorithm source code (default: renderer template). All renderers use `function sketch(...)`. State API:\n  p5 (DEFAULT — always use unless user requests otherwise): `function sketch(p, state) { ... }` — state.canvas.width/height, state.seed, state.params.key, state.colorPalette[index]. Prefix all p5 calls with `p.`\n  canvas2d: `function sketch(ctx, state) { ... }` — same state API as p5.\n  three: `function sketch(THREE, state, container) { ... }`\n  svg: `function sketch(state) { ... }` — return SVG string.\n  glsl: uniforms auto-injected (u_resolution, u_seed, u_param_<key>, u_color_<index>), no state object.\n  Use `mulberry32(state.seed)` from the \"prng\" component — NEVER `Math.random()`."),
+        .describe("Algorithm source code (default: renderer template). All renderers use `function sketch(...)`. State API:\n  p5 (DEFAULT — always use unless user requests otherwise): `function sketch(p, state) { ... }` — state.canvas.width/height, state.seed, state.params.key, state.colorPalette[index]. Prefix all p5 calls with `p.`\n  canvas2d: `function sketch(ctx, state) { ... }` — same state API as p5.\n  three: `function sketch(THREE, state, container) { ... }`\n  svg: `function sketch(state) { ... }` — return SVG string.\n  glsl: uniforms auto-injected (u_resolution, u_seed, u_param_<key>, u_color_<index>), no state object.\n  Data bridge: To publish stroke paths for painting layers, set window.__genart_data = { strokePaths: [{points:[{x,y},...], depth, width}, ...] }.\n  Use `mulberry32(state.seed)` from the \"prng\" component — NEVER `Math.random()`."),
       seed: z.number().optional().describe("Initial random seed (default: random)"),
       skills: z.array(z.string()).optional().describe("Design skill references"),
       components: z
@@ -422,6 +424,17 @@ function registerSketchTools(server: McpServer, state: EditorState): void {
         )
         .optional()
         .describe("Data sources resolved before algorithm execution and injected as state.data.<key>. Use source='component' with a component factory, source='inline' for small JSON values, or source='file' for shared .genart-data files."),
+      dataChannels: z
+        .array(
+          z.object({
+            name: z.string().describe("Channel name (e.g. 'strokePaths', 'leafPaths', 'flowField', 'valueMap')"),
+            type: z.enum(["vector", "scalar", "path"]).describe("Data type: 'vector' = [dx,dy,mag] grid, 'scalar' = float grid, 'path' = stroke path array"),
+            cols: z.number().optional().describe("Grid columns (required for vector/scalar, ignored for path)"),
+            rows: z.number().optional().describe("Grid rows (required for vector/scalar, ignored for path)"),
+          }),
+        )
+        .optional()
+        .describe("Algorithm data channels published on window.__genart_data for design layer consumption. Declare channels here so painting layers can bind to them via pathSource: 'algorithm:<channelName>'. Type 'path' channels publish StrokePath arrays (polyline points + depth/pressure/width metadata). Multiple channels supported (e.g. strokePaths for all paths, leafPaths for depth-filtered subset)."),
       addToWorkspace: z
         .string()
         .optional()
@@ -564,6 +577,17 @@ function registerSketchTools(server: McpServer, state: EditorState): void {
         )
         .optional()
         .describe("Replace data sources (injected as state.data.<key> before algorithm execution)"),
+      dataChannels: z
+        .array(
+          z.object({
+            name: z.string().describe("Channel name (e.g. 'strokePaths', 'leafPaths')"),
+            type: z.enum(["vector", "scalar", "path"]).describe("Data type"),
+            cols: z.number().optional().describe("Grid columns (required for vector/scalar)"),
+            rows: z.number().optional().describe("Grid rows (required for vector/scalar)"),
+          }),
+        )
+        .optional()
+        .describe("Replace algorithm data channels (published on window.__genart_data for design layers)"),
       agent: z.string().optional().describe("Your CLI agent name (e.g. 'claude-code', 'codex-cli', 'gemini-cli', 'opencode', 'kiro')"),
       model: z.string().optional().describe("Your AI model identifier (e.g. 'claude-opus-4-6', 'gpt-4o', 'gemini-2.5-pro')"),
       preview: z.boolean().optional().describe("When true, generate an interactive HTML preview with sliders/pickers/seed controls and open it in the browser"),
@@ -594,10 +618,10 @@ function registerSketchTools(server: McpServer, state: EditorState): void {
 
   server.tool(
     "update_algorithm",
-    "Replace the algorithm source code of a sketch. If adding/changing components, pass them in the components field alongside the algorithm. After updating, use preview_sketch to open an interactive preview in the browser.",
+    "Replace the algorithm source code of a sketch. If adding/changing components, pass them in the components field alongside the algorithm. After updating, use preview_sketch to open an interactive preview in the browser.\n\nAlgorithm data bridge: Algorithms can publish data for design layers by setting window.__genart_data properties:\n  - Stroke paths: Set window.__genart_data.strokePaths = [{points:[{x,y},...], depth, width, pressure:[...], group}, ...]\n  - Multiple channels: Publish separate arrays (e.g. strokePaths for all paths, leafPaths for depth-filtered subset)\n  - Grid data: Set window.__genart_data.flowField/valueMap/mask as Float32Arrays for spatial algorithms\n  Painting layers bind to these channels via pathSource: 'algorithm:<channelName>'.\n  Declare channels in the sketch's dataChannels field via update_sketch.",
     {
       sketchId: z.string().describe("ID of the sketch to update"),
-      algorithm: z.string().describe("New algorithm source code. All renderers use `function sketch(...)`. State API:\n  p5: `function sketch(p, state) { ... }` — state.canvas.width/height, state.seed, state.params.key, state.colorPalette[index]. Prefix all p5 calls with `p.`\n  canvas2d: `function sketch(ctx, state) { ... }` — same state API as p5.\n  three: `function sketch(THREE, state, container) { ... }`\n  svg: `function sketch(state) { ... }` — return SVG string.\n  glsl: uniforms auto-injected (u_resolution, u_seed, u_param_<key>, u_color_<index>), no state object."),
+      algorithm: z.string().describe("New algorithm source code. All renderers use `function sketch(...)`. State API:\n  p5: `function sketch(p, state) { ... }` — state.canvas.width/height, state.seed, state.params.key, state.colorPalette[index]. Prefix all p5 calls with `p.`\n  canvas2d: `function sketch(ctx, state) { ... }` — same state API as p5.\n  three: `function sketch(THREE, state, container) { ... }`\n  svg: `function sketch(state) { ... }` — return SVG string.\n  glsl: uniforms auto-injected (u_resolution, u_seed, u_param_<key>, u_color_<index>), no state object.\n  Data bridge: To publish stroke paths for painting layers, set window.__genart_data = { strokePaths: [{points:[{x,y},...], depth, width}, ...] }. Use `mulberry32(state.seed)` from the \"prng\" component — NEVER `Math.random()`."),
       validate: z
         .boolean()
         .optional()
@@ -1844,7 +1868,7 @@ function registerPreviewTools(server: McpServer, state: EditorState): void {
 function registerDesignTools(server: McpServer, state: EditorState): void {
   server.tool(
     "design_add_layer",
-    "Add a new design layer of a given type to the active sketch. Layer types come from registered plugins (e.g. 'typography:text', 'filter:grain', 'shapes:rect', 'guides:thirds').",
+    "Add a new design layer of a given type to the active sketch. Layer types come from registered plugins (e.g. 'typography:text', 'filter:grain', 'shapes:rect', 'guides:thirds').\n\nPainting layers with algorithm stroke paths:\n  Type 'painting:stroke' can render algorithm-published paths when properties include:\n  - pathSource: 'algorithm:<channelName>' — binds to a path channel (e.g. 'algorithm:strokePaths')\n  - pathBrushId: brush preset ('flat', 'round-hard', 'round-soft', 'pencil', 'ink-pen', 'splatter')\n  - pathColor: hex color for strokes (e.g. '#5a4a2a')\n  - depthMapping: JSON string mapping path depth to brush params, e.g. '{\"maxDepth\":5,\"width\":[60,4],\"pressure\":[1.0,0.15],\"paintLoad\":[0.9,0.3],\"opacity\":[1.0,0.6]}'\n  Values interpolate linearly from depth=0 to maxDepth. Paths beyond maxDepth clamp.\n  Multiple layers can read the same or different channels for multi-pass rendering (shadow, base, highlight, leaves).",
     {
       sketchId: z
         .string()
@@ -1945,7 +1969,7 @@ function registerDesignTools(server: McpServer, state: EditorState): void {
 
   server.tool(
     "design_update_layer",
-    "Update properties on a design layer (e.g. text content, filter intensity, shape fill color)",
+    "Update properties on a design layer (e.g. text content, filter intensity, shape fill color). For painting:stroke layers, updatable properties include: pathSource, pathBrushId, pathColor, depthMapping (JSON string).",
     {
       sketchId: z
         .string()

@@ -112,3 +112,9 @@ declare module "@genart-dev/plugin-trace" {
   const plugin: DesignPlugin;
   export default plugin;
 }
+
+declare module "@genart-dev/plugin-identity" {
+  import type { DesignPlugin } from "@genart-dev/core";
+  const plugin: DesignPlugin;
+  export default plugin;
+}
