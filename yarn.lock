@@ -137,12 +137,26 @@
     "@genart-dev/core" "^0.3.0"
     canvas "^3.2.1"
 
+"@genart-dev/plugin-patterns@^0.2.1":
+  version "0.2.1"
+  resolved "https://registry.npmjs.org/@genart-dev/plugin-patterns/-/plugin-patterns-0.2.1.tgz"
+  integrity sha512-uBb54Npqt7ksPxbKtBEniv7OCc60B5uKUlqGFN33Aq77gHITOMjS13roxZ2WBPw3N2FiTKyE/qIpU/6DrmpJ9g==
+  dependencies:
+    "@genart-dev/core" "^0.3.0"
+
 "@genart-dev/plugin-perspective@^0.1.0":
   version "0.1.0"
   resolved "https://registry.npmjs.org/@genart-dev/plugin-perspective/-/plugin-perspective-0.1.0.tgz"
   integrity sha512-4qW6PW9rpNYUH0bcw4+9gg4SKV7jmCa64kcLwIB1fsFofVRR1GHt7wwH7D1sHoIWM0sHeuIvJ+K9VNRFYso0oA==
   dependencies:
     "@genart-dev/core" "^0.3.0"
+
+"@genart-dev/plugin-plants@^0.3.0":
+  version "0.3.0"
+  resolved "https://registry.npmjs.org/@genart-dev/plugin-plants/-/plugin-plants-0.3.0.tgz"
+  integrity sha512-Z8huPqycgR35mcMsignCDPGG3pvYXTEIHIEPATzwCg1lx0jr6IqcJOmzmXz8Mv5PdBI1p2eQPHwiWtcxn2kueg==
+  dependencies:
+    "@genart-dev/core" "^0.6.1"
 
 "@genart-dev/plugin-poses@^0.1.0":
   version "0.1.0"
@@ -172,6 +186,13 @@
   dependencies:
     "@genart-dev/core" "^0.3.0"
     "@genart-dev/symbols" "^0.1.0"
+
+"@genart-dev/plugin-terrain@^0.1.0":
+  version "0.1.0"
+  resolved "https://registry.npmjs.org/@genart-dev/plugin-terrain/-/plugin-terrain-0.1.0.tgz"
+  integrity sha512-XTSlY3DvlNo7W0hjwcPPSo+cIg0p7Xf1ijSBUZcvBbaacQMuLJ7bGRJKia8mDKRbltRB7NXNDVMNyUO2hW/oeA==
+  dependencies:
+    "@genart-dev/core" "^0.6.1"
 
 "@genart-dev/plugin-textures@^0.1.0":
   version "0.1.2"

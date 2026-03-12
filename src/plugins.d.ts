@@ -118,3 +118,21 @@ declare module "@genart-dev/plugin-identity" {
   const plugin: DesignPlugin;
   export default plugin;
 }
+
+declare module "@genart-dev/plugin-plants" {
+  import type { DesignPlugin } from "@genart-dev/core";
+  const plugin: DesignPlugin;
+  export default plugin;
+}
+
+declare module "@genart-dev/plugin-patterns" {
+  import type { DesignPlugin } from "@genart-dev/core";
+  const plugin: DesignPlugin;
+  export default plugin;
+}
+
+declare module "@genart-dev/plugin-terrain" {
+  import type { DesignPlugin } from "@genart-dev/core";
+  const plugin: DesignPlugin;
+  export default plugin;
+}

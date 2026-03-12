@@ -25,6 +25,9 @@ import stylesPlugin from "@genart-dev/plugin-styles";
 import symbolsPlugin from "@genart-dev/plugin-symbols";
 import tracePlugin from "@genart-dev/plugin-trace";
 import identityPlugin from "@genart-dev/plugin-identity";
+import plantsPlugin from "@genart-dev/plugin-plants";
+import patternsPlugin from "@genart-dev/plugin-patterns";
+import terrainPlugin from "@genart-dev/plugin-terrain";
 import { EditorState } from "./state.js";
 import {
   createWorkspace,
@@ -148,6 +151,9 @@ async function initializePluginRegistry(): Promise<PluginRegistry> {
   await registry.register(symbolsPlugin);
   await registry.register(tracePlugin);
   await registry.register(identityPlugin);
+  await registry.register(plantsPlugin);
+  await registry.register(patternsPlugin);
+  await registry.register(terrainPlugin);
 
   return registry;
 }
