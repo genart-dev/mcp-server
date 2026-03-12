@@ -1,6 +1,6 @@
 {
   "name": "@genart-dev/mcp-server",
-  "version": "0.4.29",
+  "version": "0.4.31",
   "description": "MCP server for genart.dev — tools, resources, and prompts for generative art",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -56,7 +56,7 @@
     "access": "public"
   },
   "scripts": {
-    "build": "tsup",
+    "build": "tsup && node --max-old-space-size=8192 node_modules/.bin/tsc --declaration --emitDeclarationOnly --outDir dist",
     "test": "vitest run",
     "test:watch": "vitest",
     "clean": "rm -rf dist",
@@ -78,12 +78,12 @@
     "@genart-dev/plugin-particles": "^0.1.0",
     "@genart-dev/plugin-patterns": "^0.2.1",
     "@genart-dev/plugin-perspective": "^0.2.0",
-    "@genart-dev/plugin-plants": "^0.3.0",
+    "@genart-dev/plugin-plants": "^0.3.1",
     "@genart-dev/plugin-poses": "^0.1.0",
     "@genart-dev/plugin-shapes": "^0.1.0",
     "@genart-dev/plugin-styles": "^0.1.0",
     "@genart-dev/plugin-symbols": "^0.1.0",
-    "@genart-dev/plugin-terrain": "^0.1.0",
+    "@genart-dev/plugin-terrain": "^0.3.0",
     "@genart-dev/plugin-textures": "^0.1.0",
     "@genart-dev/plugin-trace": "^0.1.0",
     "@genart-dev/plugin-typography": "^0.2.0",
