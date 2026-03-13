@@ -1,6 +1,6 @@
 {
   "name": "@genart-dev/mcp-server",
-  "version": "0.4.31",
+  "version": "0.4.32",
   "description": "MCP server for genart.dev — tools, resources, and prompts for generative art",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -83,7 +83,7 @@
     "@genart-dev/plugin-shapes": "^0.1.0",
     "@genart-dev/plugin-styles": "^0.1.0",
     "@genart-dev/plugin-symbols": "^0.1.0",
-    "@genart-dev/plugin-terrain": "^0.3.0",
+    "@genart-dev/plugin-terrain": "^0.4.0",
     "@genart-dev/plugin-textures": "^0.1.0",
     "@genart-dev/plugin-trace": "^0.1.0",
     "@genart-dev/plugin-typography": "^0.2.0",

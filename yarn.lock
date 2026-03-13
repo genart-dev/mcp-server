@@ -293,7 +293,7 @@ __metadata:
     "@genart-dev/plugin-shapes": "npm:^0.1.0"
     "@genart-dev/plugin-styles": "npm:^0.1.0"
     "@genart-dev/plugin-symbols": "npm:^0.1.0"
-    "@genart-dev/plugin-terrain": "npm:^0.3.0"
+    "@genart-dev/plugin-terrain": "npm:^0.4.0"
     "@genart-dev/plugin-textures": "npm:^0.1.0"
     "@genart-dev/plugin-trace": "npm:^0.1.0"
     "@genart-dev/plugin-typography": "npm:^0.2.0"
@@ -491,12 +491,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@genart-dev/plugin-terrain@npm:^0.3.0":
-  version: 0.3.0
-  resolution: "@genart-dev/plugin-terrain@npm:0.3.0"
+"@genart-dev/plugin-terrain@npm:^0.4.0":
+  version: 0.4.0
+  resolution: "@genart-dev/plugin-terrain@npm:0.4.0"
   dependencies:
     "@genart-dev/core": "npm:^0.6.1"
-  checksum: 10c0/6f6682ac5c7a21027e918a5256f5c417ba25f983f75bdfcfdbdf2d1a258ae75cf1fb33b1778b318cc48e437006c8d946f265c283434121005624af36024c08a4
+  checksum: 10c0/eecd7bcd4b7167b0c3bb47cbe8045930f1470b5452ddfe6a42d670758655ad6f78dc9ed991d0cf84e28726dcf26179bacd58acd4033d97d685bece98a2cdb641
   languageName: node
   linkType: hard
 
