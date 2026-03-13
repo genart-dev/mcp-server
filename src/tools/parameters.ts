@@ -116,9 +116,10 @@ export async function setColors(
   }
 
   // Build new colorPalette array preserving order from color definitions
-  const newPalette = colorDefs.map((cDef) => {
-    if (input.colors[cDef.key] !== undefined) {
-      return input.colors[cDef.key];
+  const newPalette: string[] = colorDefs.map((cDef) => {
+    const override = input.colors[cDef.key];
+    if (override !== undefined) {
+      return override;
     }
     // Keep existing value from current palette
     const idx = colorDefs.findIndex((c) => c.key === cDef.key);

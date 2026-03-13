@@ -130,7 +130,7 @@ function registerGalleryResource(
         parameterCount: definition.parameters?.length ?? 0,
         colorCount: definition.colors?.length ?? 0,
         hasPhilosophy: !!definition.philosophy,
-        seed: definition.seed,
+        seed: definition.state.seed,
         path,
       }));
 

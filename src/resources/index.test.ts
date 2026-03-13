@@ -127,13 +127,15 @@ describe("MCP resources", () => {
     it("returns loaded sketches with metadata", async () => {
       // Add a sketch to state
       const mockSketch: SketchDefinition = {
+        genart: "1.0",
         id: "test-sketch",
         title: "Test Sketch",
-        format: "genart/1.0",
-        renderer: "p5",
+        created: "2026-01-01T00:00:00Z",
+        modified: "2026-01-01T00:00:00Z",
+        renderer: { type: "p5" },
         canvas: { width: 1200, height: 1200 },
         algorithm: "function setup() {}",
-        seed: 42,
+        state: { seed: 42, params: {}, colorPalette: [] },
         parameters: [
           { key: "size", label: "Size", min: 1, max: 100, step: 1, default: 50 },
         ],
@@ -150,7 +152,7 @@ describe("MCP resources", () => {
       expect(data.sketches).toHaveLength(1);
       expect(data.sketches[0].id).toBe("test-sketch");
       expect(data.sketches[0].title).toBe("Test Sketch");
-      expect(data.sketches[0].renderer).toBe("p5");
+      expect(data.sketches[0].renderer).toEqual({ type: "p5" });
       expect(data.sketches[0].parameterCount).toBe(1);
       expect(data.sketches[0].colorCount).toBe(1);
       expect(data.sketches[0].seed).toBe(42);

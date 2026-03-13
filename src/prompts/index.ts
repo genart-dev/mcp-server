@@ -223,9 +223,9 @@ function registerExploreVariations(
         sketchContext = [
           `## Current Sketch: "${def.title}"`,
           `- **ID:** ${def.id}`,
-          `- **Renderer:** ${def.renderer}`,
+          `- **Renderer:** ${typeof def.renderer === 'string' ? def.renderer : def.renderer.type}`,
           `- **Canvas:** ${def.canvas.width}×${def.canvas.height}`,
-          `- **Seed:** ${def.seed}`,
+          `- **Seed:** ${def.state.seed}`,
           params ? `- **Parameters:**\n${params}` : `- **Parameters:** none`,
           colors ? `- **Colors:**\n${colors}` : `- **Colors:** none`,
         ].join("\n");
@@ -329,7 +329,7 @@ function registerApplyDesignTheory(
         const def = sketch.definition;
         sketchContext = [
           `## Current Sketch: "${def.title}"`,
-          `- **Renderer:** ${def.renderer}`,
+          `- **Renderer:** ${typeof def.renderer === 'string' ? def.renderer : def.renderer.type}`,
           `- **Canvas:** ${def.canvas.width}×${def.canvas.height}`,
           `- **Parameters:** ${def.parameters?.length ?? 0} defined`,
           `- **Colors:** ${def.colors?.length ?? 0} defined`,

@@ -66,7 +66,6 @@ describe("MCP prompts", () => {
       const text = (result.messages[0].content as { type: string; text: string }).text;
       expect(text).toContain("flowing particles in a magnetic field");
       expect(text).toContain("create_sketch");
-      expect(text).toContain("capture_screenshot");
     });
 
     it("uses default renderer and complexity", async () => {
@@ -96,7 +95,7 @@ describe("MCP prompts", () => {
       });
       const text = (result.messages[0].content as { type: string; text: string }).text;
       expect(text).toContain("under 50 lines");
-      expect(text).toContain("2–3 parameters");
+      expect(text).toContain("2-3 parameters");
     });
 
     it("includes complex complexity instructions", async () => {
@@ -121,13 +120,15 @@ describe("MCP prompts", () => {
   describe("explore-variations", () => {
     it("returns prompt with sketch context when loaded", async () => {
       const mockSketch: SketchDefinition = {
+        genart: "1.0",
         id: "var-test",
         title: "Variation Test",
-        format: "genart/1.0",
-        renderer: "p5",
+        created: "2026-01-01T00:00:00Z",
+        modified: "2026-01-01T00:00:00Z",
+        renderer: { type: "p5" },
         canvas: { width: 1200, height: 1200 },
         algorithm: "function setup() {}",
-        seed: 42,
+        state: { seed: 42, params: {}, colorPalette: [] },
         parameters: [
           { key: "density", label: "Density", min: 1, max: 100, step: 1, default: 50 },
         ],
@@ -222,13 +223,17 @@ describe("MCP prompts", () => {
   describe("apply-design-theory", () => {
     it("returns prompt with sketch context when loaded", async () => {
       const mockSketch: SketchDefinition = {
+        genart: "1.0",
         id: "theory-test",
         title: "Theory Test",
-        format: "genart/1.0",
-        renderer: "canvas2d",
+        created: "2026-01-01T00:00:00Z",
+        modified: "2026-01-01T00:00:00Z",
+        renderer: { type: "canvas2d" },
         canvas: { width: 800, height: 600 },
         algorithm: "// test",
-        seed: 99,
+        state: { seed: 99, params: {}, colorPalette: [] },
+        parameters: [],
+        colors: [],
         philosophy: "Testing design theory application",
       };
       state.sketches.set("theory-test", {

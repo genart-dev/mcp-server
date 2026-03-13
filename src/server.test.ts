@@ -231,19 +231,9 @@ describe("end-to-end workflow", () => {
     expect(sketchResult.success).toBe(true);
     expect(sketchResult.id).toBe("my-sketch");
 
-    // 3. Add sketch to workspace
-    const addResult = parseToolResult(
-      await client.callTool({
-        name: "add_sketch_to_workspace",
-        arguments: {
-          sketchPath,
-          position: { x: 100, y: 200 },
-        },
-      }) as { content: Array<{ type: string; text?: string }> },
-    );
-    expect(addResult.success).toBe(true);
+    // 3. Sketch is auto-added to workspace by create_sketch
 
-    // 4. Create a second sketch and add to workspace
+    // 4. Create a second sketch (auto-added to workspace)
     const sketch2Path = join(tmpDir, "second-sketch.genart");
     await client.callTool({
       name: "create_sketch",
@@ -259,12 +249,8 @@ describe("end-to-end workflow", () => {
         colors: [{ key: "primary", label: "Primary", default: "#ff0000" }],
       },
     });
-    await client.callTool({
-      name: "add_sketch_to_workspace",
-      arguments: { sketchPath: sketch2Path },
-    });
 
-    // 5. Create a third sketch and add to workspace
+    // 5. Create a third sketch (auto-added to workspace)
     const sketch3Path = join(tmpDir, "third-sketch.genart");
     await client.callTool({
       name: "create_sketch",
@@ -274,10 +260,6 @@ describe("end-to-end workflow", () => {
         path: sketch3Path,
         renderer: "p5",
       },
-    });
-    await client.callTool({
-      name: "add_sketch_to_workspace",
-      arguments: { sketchPath: sketch3Path },
     });
 
     // Verify workspace has 3 sketches
@@ -378,10 +360,7 @@ describe("end-to-end workflow", () => {
       },
     });
 
-    await client.callTool({
-      name: "add_sketch_to_workspace",
-      arguments: { sketchPath },
-    });
+    // Sketch is auto-added to workspace by create_sketch
 
     // Select the sketch
     const selectResult = parseToolResult(
@@ -445,10 +424,7 @@ describe("end-to-end workflow", () => {
         renderer: "p5",
       },
     });
-    await client.callTool({
-      name: "add_sketch_to_workspace",
-      arguments: { sketchPath: p5Path },
-    });
+    // p5 sketch auto-added to workspace
 
     // Create canvas2d sketch
     const c2dPath = join(tmpDir, "c2d-sketch.genart");
@@ -461,10 +437,7 @@ describe("end-to-end workflow", () => {
         renderer: "canvas2d",
       },
     });
-    await client.callTool({
-      name: "add_sketch_to_workspace",
-      arguments: { sketchPath: c2dPath },
-    });
+    // canvas2d sketch auto-added to workspace
 
     // Search for p5 only
     const searchResult = parseToolResult(

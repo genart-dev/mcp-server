@@ -11,6 +11,7 @@ import {
   type ParamDef,
   type ColorDef,
   type ThemeDef,
+  type RendererType,
 } from "@genart-dev/core";
 import { EditorState } from "../state.js";
 
@@ -163,7 +164,7 @@ export async function mergeSketches(
   }
 
   // Determine renderer and canvas
-  const renderer = input.renderer ?? sources[0]!.renderer.type;
+  const renderer = (input.renderer ?? sources[0]!.renderer.type) as RendererType;
   const canvasWidth =
     input.canvas?.width ??
     Math.max(...sources.map((s) => s.canvas.width));

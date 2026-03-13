@@ -6,6 +6,7 @@
 import type {
   DesignLayer,
   LayerTransform,
+  LayerProperties,
   BlendMode,
   PluginRegistry,
 } from "@genart-dev/core";
@@ -193,7 +194,7 @@ export async function designUpdateLayer(
   }
 
   if (Object.keys(updates).length > 0) {
-    stack.updateProperties(args.layerId, updates);
+    stack.updateProperties(args.layerId, updates as Partial<LayerProperties>);
   }
 
   if (args.name !== undefined) {
@@ -228,16 +229,17 @@ export async function designSetTransform(
     throw new Error(`Layer '${args.layerId}' not found in sketch '${sketchId}'.`);
   }
 
-  const partial: Partial<LayerTransform> = {};
-  if (args.x !== undefined) partial.x = args.x;
-  if (args.y !== undefined) partial.y = args.y;
-  if (args.width !== undefined) partial.width = args.width;
-  if (args.height !== undefined) partial.height = args.height;
-  if (args.rotation !== undefined) partial.rotation = args.rotation;
-  if (args.scaleX !== undefined) partial.scaleX = args.scaleX;
-  if (args.scaleY !== undefined) partial.scaleY = args.scaleY;
-  if (args.anchorX !== undefined) partial.anchorX = args.anchorX;
-  if (args.anchorY !== undefined) partial.anchorY = args.anchorY;
+  const mutable: Record<string, number> = {};
+  if (args.x !== undefined) mutable.x = args.x;
+  if (args.y !== undefined) mutable.y = args.y;
+  if (args.width !== undefined) mutable.width = args.width;
+  if (args.height !== undefined) mutable.height = args.height;
+  if (args.rotation !== undefined) mutable.rotation = args.rotation;
+  if (args.scaleX !== undefined) mutable.scaleX = args.scaleX;
+  if (args.scaleY !== undefined) mutable.scaleY = args.scaleY;
+  if (args.anchorX !== undefined) mutable.anchorX = args.anchorX;
+  if (args.anchorY !== undefined) mutable.anchorY = args.anchorY;
+  const partial = mutable as Partial<LayerTransform>;
 
   stack.updateTransform(args.layerId, partial);
   await state.saveSketch(sketchId);
