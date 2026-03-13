@@ -57,6 +57,7 @@
   },
   "scripts": {
     "build": "tsup && node --max-old-space-size=8192 node_modules/.bin/tsc --declaration --emitDeclarationOnly --outDir dist",
+    "postbuild": "node -e \"const fs=require('fs'); ['dist/index.d.ts','dist/lib.d.ts'].forEach(f=>{if(!fs.existsSync(f)){console.error('ERROR: '+f+' missing — publish would break downstream builds'); process.exit(1)}}); console.log('Verified: DTS files present')\"",
     "test": "vitest run",
     "test:watch": "vitest",
     "clean": "rm -rf dist",
