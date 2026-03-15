@@ -36,6 +36,7 @@ const VALID_RENDERERS: readonly RendererType[] = [
   "glsl",
   "canvas2d",
   "svg",
+  "genart",
 ];
 const KEBAB_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 

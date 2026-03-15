@@ -356,9 +356,9 @@ function registerSketchTools(server: McpServer, state: EditorState): void {
       title: z.string().describe("Human-readable title"),
       path: z.string().describe("File path ending in .genart. Use ~/.genart/sketches/<id>.genart as the default location (directory is auto-created). Example: '~/.genart/sketches/ocean-currents.genart'"),
       renderer: z
-        .enum(["p5", "three", "glsl", "canvas2d", "svg"])
+        .enum(["p5", "three", "glsl", "canvas2d", "svg", "genart"])
         .optional()
-        .describe("Renderer type (default: p5)"),
+        .describe("Renderer type (default: p5). Use 'genart' for GenArt Script (.gs) — a minimal scripting language with built-in drawing primitives, PRNG, noise, vec, easing, post-processing effects, and image/font loading."),
       canvas: z
         .object({
           preset: z.string().optional().describe("Canvas preset name"),
@@ -403,7 +403,7 @@ function registerSketchTools(server: McpServer, state: EditorState): void {
       algorithm: z
         .string()
         .optional()
-        .describe("Algorithm source code (default: renderer template). All renderers use `function sketch(...)`. State API:\n  p5 (DEFAULT — always use unless user requests otherwise): `function sketch(p, state) { ... }` — state.canvas.width/height, state.seed, state.params.key, state.colorPalette[index]. Prefix all p5 calls with `p.`\n  canvas2d: `function sketch(ctx, state) { ... }` — same state API as p5.\n  three: `function sketch(THREE, state, container) { ... }`\n  svg: `function sketch(state) { ... }` — return SVG string.\n  glsl: uniforms auto-injected (u_resolution, u_seed, u_param_<key>, u_color_<index>), no state object.\n  Data bridge: To publish stroke paths for painting layers, set window.__genart_data = { strokePaths: [{points:[{x,y},...], depth, width}, ...] }.\n  Use `mulberry32(state.seed)` from the \"prng\" component — NEVER `Math.random()`."),
+        .describe("Algorithm source code (default: renderer template). State API by renderer:\n  p5 (DEFAULT): `function sketch(p, state) { ... }` — state.canvas.width/height, state.seed, state.params.key, state.colorPalette[i]. Prefix p5 calls with `p.`\n  canvas2d: `function sketch(ctx, state) { ... }` — same state API as p5.\n  three: `function sketch(THREE, state, container) { ... }`\n  svg: `function sketch(state) { ... }` — return SVG string.\n  glsl: uniforms auto-injected (u_resolution, u_seed, u_param_<key>, u_color_<index>), no state object.\n  genart: GenArt Script source — globals: w, h, t, frame, fps, rnd(n), noise(x,y), vec(x,y), PI, lerp, clamp, map, dist; drawing: circle/rect/line/arc/dot/poly/path x y ...; color: #hex, named, white.50, linear(#a,#b angle:90), radial(#a,#b); params: `param count 100 range:10..500`; colors: `color bg #000`; animation: `frame:` block; once: async (await loadFont ok); post: vignette/grain/blur/bloom/grade/scanlines/pixelate. No state object — params/colors are globals.\n  Data bridge: set window.__genart_data = { strokePaths: [...] }.\n  Use `mulberry32(state.seed)` from \"prng\" component for p5/canvas2d/three/svg — NEVER `Math.random()`. For genart renderer use built-in rnd() which is seeded automatically."),
       seed: z.number().optional().describe("Initial random seed (default: random)"),
       skills: z.array(z.string()).optional().describe("Design skill references"),
       components: z
