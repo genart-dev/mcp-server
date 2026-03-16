@@ -172,16 +172,17 @@ describe("MCP resources", () => {
   });
 
   describe("genart://renderers", () => {
-    it("returns all 5 renderer types", async () => {
+    it("returns all 6 renderer types", async () => {
       const result = await client.readResource({ uri: "genart://renderers" });
       const data = JSON.parse(result.contents[0].text as string);
-      expect(data.renderers).toHaveLength(5);
+      expect(data.renderers).toHaveLength(6);
       const types = data.renderers.map((r: { type: string }) => r.type);
       expect(types).toContain("p5");
       expect(types).toContain("canvas2d");
       expect(types).toContain("three");
       expect(types).toContain("glsl");
       expect(types).toContain("svg");
+      expect(types).toContain("genart");
     });
 
     it("identifies p5 as default renderer", async () => {

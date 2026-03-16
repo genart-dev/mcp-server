@@ -402,3 +402,4 @@ export async function designCaptureComposite(
       "then use design_list_layers to see the design layer stack.",
   };
 }
+
