@@ -136,3 +136,9 @@ declare module "@genart-dev/plugin-terrain" {
   const plugin: DesignPlugin;
   export default plugin;
 }
+
+declare module "@genart-dev/plugin-atmosphere" {
+  import type { DesignPlugin } from "@genart-dev/core";
+  const plugin: DesignPlugin;
+  export default plugin;
+}

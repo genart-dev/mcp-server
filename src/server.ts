@@ -29,6 +29,7 @@ import plantsPlugin from "@genart-dev/plugin-plants";
 import patternsPlugin from "@genart-dev/plugin-patterns";
 import terrainPlugin from "@genart-dev/plugin-terrain";
 import particlesPlugin from "@genart-dev/plugin-particles";
+import atmospherePlugin from "@genart-dev/plugin-atmosphere";
 import { EditorState } from "./state.js";
 import {
   createWorkspace,
@@ -156,6 +157,7 @@ async function initializePluginRegistry(): Promise<PluginRegistry> {
   await registry.register(patternsPlugin);
   await registry.register(terrainPlugin);
   await registry.register(particlesPlugin);
+  await registry.register(atmospherePlugin);
 
   return registry;
 }
