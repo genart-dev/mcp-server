@@ -64,7 +64,7 @@
     "prepublishOnly": "pnpm build"
   },
   "dependencies": {
-    "@genart-dev/core": "^0.6.4",
+    "@genart-dev/core": "^0.7.0",
     "@genart-dev/plugin-animation": "^0.1.0",
     "@genart-dev/plugin-atmosphere": "^0.2.0",
     "@genart-dev/plugin-color-adjust": "^0.1.0",
@@ -89,6 +89,7 @@
     "@genart-dev/plugin-textures": "^0.1.0",
     "@genart-dev/plugin-trace": "^0.1.0",
     "@genart-dev/plugin-typography": "^0.2.0",
+    "@genart-dev/plugin-water": "^0.1.0",
     "@genart-dev/symbols": "^0.1.0",
     "@modelcontextprotocol/sdk": "^1.12.0",
     "archiver": "^7.0.1",
