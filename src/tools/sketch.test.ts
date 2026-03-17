@@ -919,4 +919,119 @@ describe("sketch lifecycle tools", () => {
       ).rejects.toThrow("No workspace is currently open");
     });
   });
+
+  // -----------------------------------------------------------------------
+  // libraries support
+  // -----------------------------------------------------------------------
+
+  describe("create_sketch with libraries", () => {
+    it("creates a sketch with p5.brush library", async () => {
+      const path = join(tmpDir, "brush-sketch.genart");
+      const result = await createSketch(state, {
+        id: "brush-sketch",
+        title: "Brush Sketch",
+        path,
+        renderer: "p5",
+        libraries: ["p5.brush"],
+      });
+
+      expect(result.success).toBe(true);
+
+      const raw = await readFile(path, "utf-8");
+      const parsed = JSON.parse(raw);
+
+      // Renderer version should be upgraded to 2.x
+      expect(parsed.renderer.version).toBe("2.x");
+
+      // Libraries should contain p5.brush dependency
+      expect(parsed.libraries).toBeDefined();
+      expect(parsed.libraries.length).toBe(1);
+      expect(parsed.libraries[0].name).toBe("p5.brush");
+      expect(parsed.libraries[0].version).toBe("2.0.3-beta");
+      expect(parsed.libraries[0].cdnUrl).toContain("p5.brush");
+    });
+
+    it("creates a sketch without libraries (renderer version stays 1.x)", async () => {
+      const path = join(tmpDir, "no-lib.genart");
+      await createSketch(state, {
+        id: "no-lib",
+        title: "No Library",
+        path,
+      });
+
+      const raw = await readFile(path, "utf-8");
+      const parsed = JSON.parse(raw);
+      expect(parsed.renderer.version).toBe("1.x");
+      expect(parsed.libraries).toBeUndefined();
+    });
+
+    it("rejects unknown library preset", async () => {
+      await expect(
+        createSketch(state, {
+          id: "bad-lib",
+          title: "Bad",
+          path: join(tmpDir, "bad-lib.genart"),
+          libraries: ["nonexistent-lib"],
+        }),
+      ).rejects.toThrow("Unknown library preset");
+    });
+  });
+
+  describe("update_algorithm library warning", () => {
+    beforeEach(async () => {
+      await setupWorkspace(tmpDir, state);
+    });
+
+    it("warns when algorithm uses brush APIs but sketch lacks p5.brush", async () => {
+      const result = await updateAlgorithm(state, {
+        sketchId: "test-sketch",
+        algorithm: `function sketch(p, state) {
+  p.setup = () => { p.createCanvas(800, 800, p.WEBGL); };
+  p.draw = () => { brush.fill("#ff0000", 100, 0.5); };
+  return { initializeSystem() {} };
+}`,
+        validate: false,
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.libraryWarning).toBeDefined();
+      expect(result.libraryWarning).toContain("p5.brush");
+    });
+
+    it("does not warn when algorithm uses brush APIs and sketch has p5.brush", async () => {
+      // Create a sketch with p5.brush library
+      const path = join(tmpDir, "brush-algo.genart");
+      await createSketch(state, {
+        id: "brush-algo",
+        title: "Brush Algo",
+        path,
+        renderer: "p5",
+        libraries: ["p5.brush"],
+        addToWorkspace: join(tmpDir, "test.genart-workspace"),
+      });
+
+      const result = await updateAlgorithm(state, {
+        sketchId: "brush-algo",
+        algorithm: `function sketch(p, state) {
+  p.setup = () => { p.createCanvas(800, 800, p.WEBGL); };
+  p.draw = () => { brush.fill("#ff0000", 100, 0.5); };
+  return { initializeSystem() {} };
+}`,
+        validate: false,
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.libraryWarning).toBeUndefined();
+    });
+
+    it("does not warn when algorithm has no brush APIs", async () => {
+      const result = await updateAlgorithm(state, {
+        sketchId: "test-sketch",
+        algorithm: UPDATED_ALGORITHM,
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.libraryWarning).toBeUndefined();
+    });
+  });
 });

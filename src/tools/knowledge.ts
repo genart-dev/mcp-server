@@ -121,6 +121,109 @@ const STATIC_GUIDELINES: Record<string, string> = {
 - Limit particle/element counts with parameters
 - Use spatial data structures (quadtree, grid) for collision/proximity
 - Profile with Chrome DevTools before optimizing`,
+
+  "p5-brush": `## p5.brush Renderer Guide
+
+p5.brush v2 (by Alejandro Campos, MIT) transforms p5.js into a natural-media rendering engine — watercolor, charcoal, ink, hatching, vector fields.
+
+### Setup (CRITICAL — get this right or nothing renders)
+
+\`\`\`js
+p.setup = () => {
+  p.createCanvas(WIDTH, HEIGHT, p.WEBGL);  // WEBGL is REQUIRED
+  p.randomSeed(SEED);                      // Seeds both p5 and p5.brush
+};
+p.draw = () => {
+  const ox = -WIDTH / 2, oy = -HEIGHT / 2; // WEBGL origin is center
+  p.background(COLORS.background);
+  // ALL brush calls use (ox + px, oy + py) for positioning
+  p.noLoop(); // Draw once — MUST be at END of draw(), NEVER in setup()
+};
+\`\`\`
+
+### What NOT to do (confirmed failures)
+- \`brush.load()\` — does NOT exist in v2; auto-initializes
+- \`brush.seed(n)\` — does NOT exist in v2; use \`p.randomSeed()\`
+- \`p.translate(-WIDTH/2, -HEIGHT/2)\` — p5.brush ignores p5's matrix
+- \`p.text()\` in WEBGL — crashes; only loaded .ttf/.otf fonts work
+- \`p.noLoop()\` in setup() — prevents draw() from running (frameCount stays 0)
+- \`brush.fill('watercolor', ...)\` — v1 API; v2 has NO type argument
+
+### Stroke Brushes (7 valid in v2)
+\`HB\` — clean pencil, good weight sensitivity
+\`2B\` — softer pencil, slightly thicker
+\`charcoal\` — textured, rough at high weight — most expressive
+\`pen\` — crisp, fine — best for outlines and detail
+\`marker\` — bold, fills quickly at weight 3+
+\`rotring\` — technical pen, very consistent width
+\`spray\` — scattered particles — clouds, stipple, texture
+
+INVALID in v2 (were v1): oil, watercolor, stipple, pencil
+
+Usage:
+\`\`\`js
+brush.set('pen', '#1a1a2e', 1.5);  // name, color, weight
+brush.line(ox + x1, oy + y1, ox + x2, oy + y2);
+brush.rect(ox + x, oy + y, w, h);
+brush.circle(ox + cx, oy + cy, radius);
+brush.beginShape();
+  brush.vertex(ox + x, oy + y);
+brush.endShape(p.CLOSE);
+brush.noStroke();
+\`\`\`
+
+### Watercolor Fill
+\`\`\`js
+brush.fill('#4488cc', 0.5);      // color, alpha (0–1)
+brush.fillBleed(0.35);           // bleed intensity (0–1)
+brush.fillTexture(0.5, 0.3);    // texture strength, border intensity
+brush.noFill();
+
+// Then draw a shape — fill applies to it
+brush.rect(ox + x, oy + y, w, h);
+brush.circle(ox + cx, oy + cy, r);
+\`\`\`
+Visibility tips: alpha ≥ 0.4 and bleed ≥ 0.15 for readable results.
+Performance: ~5ms/fill, linear scaling. 60 fills ≈ 300ms — fine for draw-once.
+
+### Hatching
+\`\`\`js
+brush.set('HB', '#1a1a1a', 0.6);
+brush.hatch(spacing, angle, { rand: 0.05 });  // spacing px, angle degrees
+brush.rect(ox + x, oy + y, w, h);             // hatch fills this shape
+brush.noHatch();                               // REQUIRED — hatch persists
+\`\`\`
+Cross-hatch: call hatch() twice with different angles on the same shape.
+Spacing: 3px = dense/dark, 6-10px = mid-tone, 12+ = light.
+
+### Vector Fields (7 valid in v2)
+\`hand\`, \`curved\`, \`zigzag\`, \`waves\`, \`seabed\`, \`spiral\`, \`columns\`
+INVALID in v2: seaweed, polarCurves, crossfield, truncated
+
+\`\`\`js
+brush.field('curved');  // All subsequent strokes follow this field
+// ... draw strokes ...
+brush.noField();
+\`\`\`
+
+### Multi-Pass Rendering (recommended architecture)
+For best results, layer media in passes:
+1. **Underpainting** — soft watercolor washes (brush.fill + fillBleed)
+2. **Structure** — directional strokes with vector field (brush.set + brush.line)
+3. **Tone** — hatched regions for shadow/density (brush.hatch)
+4. **Detail** — fine pen/rotring strokes for precision
+
+### Integration with genart state
+- \`state.params\` — access parameter values by key
+- \`state.colorPalette\` — array of hex strings (ordered by color definitions)
+- \`state.seed\` — pass to \`p.randomSeed()\` for determinism
+- \`state.canvas.width/height\` — canvas dimensions
+
+### Common Patterns
+**Organic blobs**: beginShape() with noise-displaced vertices, filled with watercolor
+**Pressure strokes**: vary brush weight per segment using lerp(startW, endW, t)
+**Atmospheric depth**: lower alpha and higher bleed for distant elements
+**Natural textures**: spray brush for stippled surfaces, HB for fine grain lines`,
 };
 
 export async function getGuidelines(

@@ -89,6 +89,7 @@ import {
   extractPalette,
 } from "./tools/reference.js";
 import { exportSketch } from "./tools/export.js";
+import { listLibraries } from "./tools/library.js";
 import { previewSketch } from "./tools/preview.js";
 import {
   designAddLayer,
@@ -226,6 +227,7 @@ export function createServer(
   registerReferenceTools(server, state);
   registerExportTools(server, state);
   registerPreviewTools(server, state);
+  registerLibraryTools(server);
 
   registerResources(server, state);
   registerPrompts(server, state);
@@ -410,6 +412,10 @@ function registerSketchTools(server: McpServer, state: EditorState): void {
         .describe("Algorithm source code (default: renderer template). State API by renderer:\n  p5 (DEFAULT): `function sketch(p, state) { ... }` — state.canvas.width/height, state.seed, state.params.key, state.colorPalette[i]. Prefix p5 calls with `p.`\n  canvas2d: `function sketch(ctx, state) { ... }` — same state API as p5.\n  three: `function sketch(THREE, state, container) { ... }`\n  svg: `function sketch(state) { ... }` — return SVG string.\n  glsl: uniforms auto-injected (u_resolution, u_seed, u_param_<key>, u_color_<index>), no state object.\n  genart: GenArt Script source — globals: w, h, t, frame, fps, rnd(n), noise(x,y), vec(x,y), PI, lerp, clamp, map, dist, mouseX/Y, pmouseX/Y, mouseDown, touchX/Y, touches, prev (previous frame ImageData); drawing: circle/rect/line/arc/dot/poly/path x y ...; color: #hex, named, white.50, linear(#a,#b angle:90), radial(#a,#b); params: `param count 100 range:10..500`; colors: `color bg #000`; layers: `layer \"terrain:sky\" \"noon\" opacity:0.8 blend:\"multiply\"`; animation: `frame:` block; once: async (await loadFont ok); post: vignette/grain/blur/bloom/grade/scanlines/pixelate/chromatic_aberration/distort/dither/halftone — effects accept optional quality:\"auto\"|\"high\"|\"fast\" last arg. No state object — params/colors are globals.\n  Data bridge: set window.__genart_data = { strokePaths: [...] }.\n  Use `mulberry32(state.seed)` from \"prng\" component for p5/canvas2d/three/svg — NEVER `Math.random()`. For genart renderer use built-in rnd() which is seeded automatically."),
       seed: z.number().optional().describe("Initial random seed (default: random)"),
       skills: z.array(z.string()).optional().describe("Design skill references"),
+      libraries: z
+        .array(z.string())
+        .optional()
+        .describe("External library dependencies by preset name (e.g. [\"p5.brush\"]). Use list_libraries to see available presets. Libraries are loaded as CDN script tags before the algorithm. p5.brush automatically switches the renderer to p5.js 2.x and WEBGL mode."),
       components: z
         .record(
           z.union([
@@ -1874,6 +1880,26 @@ function registerPreviewTools(server: McpServer, state: EditorState): void {
 }
 
 // ---------------------------------------------------------------------------
+// Library Tools
+// ---------------------------------------------------------------------------
+
+function registerLibraryTools(server: McpServer): void {
+  server.tool(
+    "list_libraries",
+    "List all curated external library presets available for use with create_sketch. Each entry shows the library name, version, compatible renderers, license, and description. Pass a library name in the `libraries` array of create_sketch to include it.",
+    {},
+    async () => {
+      try {
+        const result = listLibraries();
+        return jsonResult(result);
+      } catch (e) {
+        return toolError(e instanceof Error ? e.message : String(e));
+      }
+    },
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Design Layer Tools (12 core tools)
 // ---------------------------------------------------------------------------
 
@@ -2215,7 +2241,7 @@ function registerKnowledgeTools(server: McpServer, state: EditorState): void {
     "Return design guidelines and best practices for a topic (Phase 5)",
     {
       topic: z
-        .enum(["composition", "color", "process", "painting", "illustration", "parameters", "animation", "performance"])
+        .enum(["composition", "color", "process", "painting", "illustration", "parameters", "animation", "performance", "p5-brush"])
         .describe("Guideline topic"),
       renderer: z
         .enum(["p5", "three", "glsl", "canvas2d", "svg"])

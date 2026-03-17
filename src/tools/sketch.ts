@@ -10,10 +10,12 @@ import {
   createDefaultRegistry,
   parseGenart,
   resolveComponents,
+  resolveLibraries,
   resolvePreset,
   serializeGenart,
   serializeWorkspace,
   type ColorDef,
+  type LibraryDependency,
   type ParamDef,
   type RendererType,
   type SketchComponentDef,
@@ -136,6 +138,7 @@ export interface CreateSketchInput {
   seed?: number;
   skills?: string[];
   components?: Record<string, string | { version?: string; code?: string; exports?: string[] }>;
+  libraries?: string[];
   data?: Record<string, SketchDataSource>;
   dataChannels?: AlgorithmDataChannel[];
   addToWorkspace?: string;
@@ -173,12 +176,25 @@ export async function createSketch(
     validateParameters(parameters);
   }
 
+  // Resolve external libraries (e.g. p5.brush) — names → LibraryDependency objects
+  let resolvedLibs: LibraryDependency[] | undefined;
+  let rendererVersion = "1.x";
+  if (input.libraries && input.libraries.length > 0) {
+    resolvedLibs = resolveLibraries(input.libraries);
+    // If any library requires a specific renderer version, adopt it
+    for (const lib of resolvedLibs) {
+      if (lib.rendererVersionRequirement) {
+        rendererVersion = lib.rendererVersionRequirement;
+      }
+    }
+  }
+
   // Get algorithm from input or renderer template
   let algorithm = input.algorithm;
   if (!algorithm) {
     const registry = createDefaultRegistry();
     const adapter = registry.resolve(rendererType);
-    algorithm = adapter.getAlgorithmTemplate();
+    algorithm = adapter.getAlgorithmTemplate(resolvedLibs);
   }
 
   // Resolve components if provided
@@ -227,8 +243,9 @@ export async function createSketch(
     title: input.title,
     created: ts,
     modified: ts,
-    renderer: { type: rendererType, version: "1.x" },
+    renderer: { type: rendererType, version: rendererVersion },
     canvas: canvasDims,
+    libraries: resolvedLibs,
     parameters,
     colors,
     state: buildState(parameters, colors, seed),
@@ -601,6 +618,18 @@ export async function updateAlgorithm(
     updated,
   });
 
+  // Auto-detect: warn if algorithm uses p5.brush APIs but sketch lacks p5.brush library
+  let libraryWarning: string | undefined;
+  const P5_BRUSH_PATTERN = /\bbrush\.(set|fill|hatch|line|flowLine|beginStroke|endStroke)\b/;
+  if (
+    P5_BRUSH_PATTERN.test(input.algorithm) &&
+    !def.libraries?.some((lib) => lib.name === "p5.brush")
+  ) {
+    libraryWarning =
+      "Algorithm uses p5.brush APIs (brush.set/fill/hatch) but the sketch does not declare p5.brush as a library dependency. " +
+      "Recreate the sketch with libraries:[\"p5.brush\"] in create_sketch, or the brush calls will fail at runtime.";
+  }
+
   return {
     success: true,
     sketchId: input.sketchId,
@@ -608,6 +637,7 @@ export async function updateAlgorithm(
     algorithmLength: input.algorithm.length,
     validationPassed,
     ...(hasNewComponents ? { componentsUpdated: true } : {}),
+    ...(libraryWarning ? { libraryWarning } : {}),
     ...(state.remoteMode ? { fileContent: json } : {}),
   };
 }
