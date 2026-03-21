@@ -218,10 +218,9 @@ export function createServer(
   registerKnowledgeTools(server, state);
   registerDesignTools(server, state);
 
-  // Capture tools require puppeteer + local filesystem — skip in remote mode
-  if (!state.remoteMode) {
-    registerCaptureTools(server, state);
-  }
+  // Capture tools: use local Puppeteer when available, or delegate to the
+  // render service via RENDER_SERVICE_URL when running in remote mode (ADR 096).
+  registerCaptureTools(server, state);
   registerCritiqueTools(server, state);
   registerSeriesTools(server, state);
   registerReferenceTools(server, state);

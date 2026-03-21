@@ -1,9 +1,21 @@
 /**
  * Headless capture — renders a standalone HTML page to a PNG screenshot
  * using Puppeteer's headless Chrome.
+ *
+ * When RENDER_SERVICE_URL is set, delegates to the remote render service
+ * (ADR 096) instead of launching a local browser.
  */
 
 import puppeteer from "puppeteer";
+import { captureHtmlRemote, captureHtmlMultiRemote, type RemoteCaptureConfig } from "./remote.js";
+
+/** Remote render service config — set when running in mcp-host (remote mode). */
+const remoteConfig: RemoteCaptureConfig | null = process.env.RENDER_SERVICE_URL
+  ? {
+      url: process.env.RENDER_SERVICE_URL,
+      secret: process.env.RENDER_SERVICE_SECRET || "",
+    }
+  : null;
 
 type Browser = Awaited<ReturnType<typeof puppeteer.launch>>;
 
@@ -86,6 +98,8 @@ async function getBrowser(): Promise<Browser> {
  * after a brief wait to allow the sketch to render its first frame.
  */
 export async function captureHtml(options: CaptureOptions): Promise<CaptureResult> {
+  if (remoteConfig) return captureHtmlRemote(remoteConfig, options);
+
   const { html, width, height, waitMs = 500, imageType = "png", quality } = options;
 
   const browser = await getBrowser();
@@ -125,6 +139,8 @@ export async function captureHtmlMulti(options: {
   inlineSize?: number;
   jpegQuality?: number;
 }): Promise<MultiCaptureResult> {
+  if (remoteConfig) return captureHtmlMultiRemote(remoteConfig, options);
+
   const { html, width, height, waitMs = 500, inlineSize = 400, jpegQuality = 70 } = options;
 
   const browser = await getBrowser();
