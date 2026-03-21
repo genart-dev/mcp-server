@@ -47,6 +47,18 @@ export interface MultiCaptureResult {
   inlineHeight: number;
 }
 
+/**
+ * Chrome launch args that enable WebGL2 via SwANGLE (SwiftShader + ANGLE).
+ * On macOS ARM, SwiftShader is broken — `headless: "new"` uses the real GPU.
+ */
+function getWebGLArgs(): string[] {
+  const base = ["--use-gl=angle"];
+  if (process.platform === "darwin" && process.arch === "arm64") {
+    return base;
+  }
+  return [...base, "--use-angle=swiftshader", "--enable-unsafe-swiftshader"];
+}
+
 /** Shared browser instance (lazy singleton). */
 let browserInstance: Browser | null = null;
 
@@ -56,14 +68,13 @@ async function getBrowser(): Promise<Browser> {
     return browserInstance;
   }
   browserInstance = await puppeteer.launch({
-    headless: true,
+    headless: "new",
     executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
     args: [
       "--no-sandbox",
       "--disable-setuid-sandbox",
-      "--disable-gpu",
       "--disable-dev-shm-usage",
-      "--single-process",
+      ...getWebGLArgs(),
     ],
   });
   return browserInstance;
