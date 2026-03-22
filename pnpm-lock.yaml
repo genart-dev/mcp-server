@@ -92,6 +92,9 @@ importers:
       '@genart-dev/symbols':
         specifier: ^0.1.0
         version: 0.1.0
+      '@modelcontextprotocol/ext-apps':
+        specifier: 1.2.2
+        version: 1.2.2(@modelcontextprotocol/sdk@1.27.0(zod@3.25.76))(zod@3.25.76)
       '@modelcontextprotocol/sdk':
         specifier: ^1.12.0
         version: 1.27.0(zod@3.25.76)
@@ -443,6 +446,20 @@ packages:
 
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
+
+  '@modelcontextprotocol/ext-apps@1.2.2':
+    resolution: {integrity: sha512-qMnhIKb8tyPesl+kZU76Xz9Bi9putCO+LcgvBJ00fDdIniiLZsnQbAeTKoq+sTiYH1rba2Fvj8NPAFxij+gyxw==}
+    engines: {node: '>=20'}
+    peerDependencies:
+      '@modelcontextprotocol/sdk': ^1.24.0
+      react: ^17.0.0 || ^18.0.0 || ^19.0.0
+      react-dom: ^17.0.0 || ^18.0.0 || ^19.0.0
+      zod: ^3.25.0 || ^4.0.0
+    peerDependenciesMeta:
+      react:
+        optional: true
+      react-dom:
+        optional: true
 
   '@modelcontextprotocol/sdk@1.27.0':
     resolution: {integrity: sha512-qOdO524oPMkUsOJTrsH9vz/HN3B5pKyW+9zIW51A9kDMVe7ON70drz1ouoyoyOcfzc+oxhkQ6jWmbyKnlWmYqA==}
@@ -2274,6 +2291,11 @@ snapshots:
     dependencies:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.5
+
+  '@modelcontextprotocol/ext-apps@1.2.2(@modelcontextprotocol/sdk@1.27.0(zod@3.25.76))(zod@3.25.76)':
+    dependencies:
+      '@modelcontextprotocol/sdk': 1.27.0(zod@3.25.76)
+      zod: 3.25.76
 
   '@modelcontextprotocol/sdk@1.27.0(zod@3.25.76)':
     dependencies:

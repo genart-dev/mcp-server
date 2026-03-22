@@ -69,7 +69,7 @@ describe("MCP server integration", () => {
   describe("capability listing", () => {
     it("lists all registered tools (original + design core + plugins)", async () => {
       const result = await client.listTools();
-      expect(result.tools.length).toBe(277);
+      expect(result.tools.length).toBe(278);
     });
 
     it("includes all workspace tools", async () => {
@@ -146,14 +146,43 @@ describe("MCP server integration", () => {
       }
     });
 
-    it("lists all 4 resources", async () => {
+    it("preview_sketch and capture_screenshot have _meta.ui.resourceUri", async () => {
+      const result = await client.listTools();
+      const preview = result.tools.find((t) => t.name === "preview_sketch");
+      const capture = result.tools.find((t) => t.name === "capture_screenshot");
+
+      expect(preview).toBeDefined();
+      expect(capture).toBeDefined();
+
+      // registerAppTool sets _meta with both nested and legacy key formats
+      const previewMeta = preview!._meta as Record<string, unknown> | undefined;
+      const captureMeta = capture!._meta as Record<string, unknown> | undefined;
+      expect(previewMeta).toBeDefined();
+      expect(captureMeta).toBeDefined();
+
+      // Check for ui.resourceUri (nested format)
+      const previewUi = (previewMeta as any)?.ui;
+      const captureUi = (captureMeta as any)?.ui;
+      expect(previewUi?.resourceUri).toBe("ui://sketch-preview");
+      expect(captureUi?.resourceUri).toBe("ui://sketch-preview");
+    });
+
+    it("includes _get_sketch_data app-only tool", async () => {
+      const result = await client.listTools();
+      const tool = result.tools.find((t) => t.name === "_get_sketch_data");
+      expect(tool).toBeDefined();
+      expect(tool!.description).toContain("sketch definition");
+    });
+
+    it("lists all 5 resources", async () => {
       const result = await client.listResources();
-      expect(result.resources.length).toBe(4);
+      expect(result.resources.length).toBe(5);
       const uris = result.resources.map((r) => r.uri);
       expect(uris).toContain("genart://skills");
       expect(uris).toContain("genart://presets/canvas");
       expect(uris).toContain("genart://gallery");
       expect(uris).toContain("genart://renderers");
+      expect(uris).toContain("ui://sketch-preview");
     });
 
     it("lists all 6 prompts", async () => {

@@ -1,0 +1,988 @@
+<!DOCTYPE html>
+<!--
+  genart.dev MCP App — Interactive sketch preview rendered inside the conversation.
+
+  Loaded by MCP Apps-capable hosts (Claude Desktop, claude.ai, etc.) when
+  preview_sketch or capture_screenshot is called.
+
+  Data flow:
+  1. Host loads this HTML in a sandboxed iframe
+  2. ontoolinput sends the tool arguments (sketchId, seed, params)
+  3. App calls _get_sketch_data to fetch the full sketch definition
+  4. Sketch is rendered on canvas with interactive panel controls
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>genart.dev Preview</title>
+  <style>
+    /* --- Shared layout --- */
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { display: flex; min-height: 100vh; background: var(--bg-primary, #0A0A0A); overflow: hidden; }
+    #canvas-container { flex: 1; display: flex; justify-content: center; align-items: center; padding: 1rem; min-width: 0; overflow: hidden; }
+    #canvas-container canvas { display: block; max-width: 100%; max-height: calc(100vh - 2rem); }
+    #svg-container svg { display: block; width: 100%; height: auto; max-width: 100%; max-height: calc(100vh - 2rem); }
+
+    /* --- Theme tokens (genart.dev design system) --- */
+    :root {
+      --bg-primary: #0A0A0A;
+      --bg-surface: #1A1A1A;
+      --bg-inset: #0A0A0A;
+      --text-primary: #FFFFFF;
+      --text-secondary: #999999;
+      --text-tertiary: #666666;
+      --text-muted: #3A3A3A;
+      --accent-primary: #E0E0E0;
+      --border: #3A3A3A;
+    }
+    [data-theme="light"], :root[data-theme="light"] {
+      --bg-primary: #FAFAFA;
+      --bg-surface: #FFFFFF;
+      --bg-inset: #E5E5E5;
+      --text-primary: #0A0A0A;
+      --text-secondary: #666666;
+      --text-tertiary: #999999;
+      --text-muted: #CCCCCC;
+      --accent-primary: #333333;
+      --border: #E5E5E5;
+    }
+    @media (prefers-color-scheme: light) {
+      :root:not([data-theme="dark"]) {
+        --bg-primary: #FAFAFA;
+        --bg-surface: #FFFFFF;
+        --bg-inset: #E5E5E5;
+        --text-primary: #0A0A0A;
+        --text-secondary: #666666;
+        --text-tertiary: #999999;
+        --text-muted: #CCCCCC;
+        --accent-primary: #333333;
+        --border: #E5E5E5;
+      }
+    }
+
+    /* --- Loading state --- */
+    #loading-state {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      color: var(--text-tertiary);
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      font-size: 13px;
+    }
+    #loading-state .spinner {
+      width: 24px; height: 24px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent-primary);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .hidden { display: none !important; }
+
+    /* --- Captured image display --- */
+    #captured-image {
+      flex: 1;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 1rem;
+    }
+    #captured-image img {
+      display: block;
+      max-width: 100%;
+      max-height: calc(100vh - 2rem);
+      border-radius: 2px;
+    }
+
+    /* --- Panel --- */
+    #genart-panel {
+      width: 280px;
+      min-width: 280px;
+      background: var(--bg-surface);
+      border-left: 1px solid var(--border);
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      font-size: 12px;
+      color: var(--text-primary);
+    }
+
+    /* Divider */
+    .gp-divider { height: 1px; background: var(--border); width: 100%; flex-shrink: 0; }
+
+    /* Section label */
+    .gp-section-label {
+      font-size: 11px; font-weight: 600; letter-spacing: 2px;
+      text-transform: uppercase; color: var(--text-tertiary);
+      padding: 12px 16px 4px;
+    }
+
+    /* Header */
+    .gp-header {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 8px; padding: 8px 16px; min-height: 40px;
+    }
+    .gp-sketch-name {
+      font-size: 14px; font-weight: 600; color: var(--text-primary);
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .gp-badge {
+      display: inline-flex; align-items: center; padding: 2px 6px;
+      border-radius: 3px; font-family: 'JetBrains Mono', 'SF Mono', 'Menlo', monospace;
+      font-size: 10px; font-weight: 700; color: #fff; flex-shrink: 0;
+    }
+
+    /* Seed controls */
+    .gp-seed-row { display: flex; gap: 8px; align-items: center; padding: 0 16px 12px; }
+    .gp-seed-btn {
+      width: 32px; height: 32px; background: var(--bg-inset); border: none;
+      color: var(--text-secondary); cursor: pointer; display: flex;
+      align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    .gp-seed-btn:hover { color: var(--accent-primary); }
+    .gp-seed-btn svg { width: 16px; height: 16px; stroke: currentColor; stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+    .gp-seed-input {
+      flex: 1; height: 32px; background: var(--bg-inset); border: none;
+      color: var(--accent-primary); font-family: 'JetBrains Mono', 'SF Mono', 'Menlo', monospace;
+      font-size: 13px; font-weight: 600; text-align: center; outline: none;
+      padding: 0 8px; min-width: 0;
+    }
+
+    /* Parameter slider */
+    .gp-param { padding: 0 16px; display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+    .gp-param:last-child { margin-bottom: 0; }
+    .gp-param-header { display: flex; justify-content: space-between; align-items: center; }
+    .gp-param-name { font-size: 12px; font-weight: 500; color: var(--text-primary); }
+    .gp-param-val { font-family: 'JetBrains Mono', 'SF Mono', 'Menlo', monospace; font-size: 12px; font-weight: 600; color: var(--accent-primary); }
+    .gp-param-track { position: relative; width: 100%; height: 6px; background: var(--bg-inset); border-radius: 3px; overflow: hidden; }
+    .gp-param-fill { position: absolute; left: 0; top: 0; bottom: 0; background: var(--accent-primary); border-radius: 3px; }
+    .gp-param-input { position: absolute; left: 0; top: -7px; width: 100%; height: 20px; opacity: 0; cursor: pointer; margin: 0; }
+
+    /* Color swatches */
+    .gp-colors { display: flex; gap: 8px; padding: 0 16px; flex-wrap: wrap; }
+    .gp-swatch { width: 28px; height: 28px; border: none; cursor: pointer; position: relative; flex-shrink: 0; }
+    .gp-swatch-active { outline: 2px solid var(--accent-primary); outline-offset: -2px; }
+    .gp-swatch-input { position: absolute; left: 0; top: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+
+    /* Theme selector */
+    .gp-theme-row { display: flex; gap: 8px; padding: 0 16px; }
+    .gp-theme-btn {
+      display: flex; align-items: center; justify-content: center; gap: 4px;
+      flex: 1; height: 32px; background: var(--bg-inset); border: none;
+      color: var(--text-tertiary); font-family: inherit; font-size: 11px; cursor: pointer;
+    }
+    .gp-theme-btn.active { background: var(--border); color: var(--accent-primary); outline: 1px solid var(--accent-primary); outline-offset: -1px; }
+    .gp-theme-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+
+    /* Philosophy */
+    .gp-philosophy { font-size: 12px; line-height: 1.5; color: var(--text-tertiary); padding: 0 16px; }
+
+    /* File info */
+    .gp-info-grid { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; font-size: 11px; padding: 0 16px; }
+    .gp-info-key { color: var(--text-tertiary); }
+    .gp-info-val { color: var(--text-secondary); font-family: 'JetBrains Mono', 'SF Mono', 'Menlo', monospace; }
+
+    /* Section */
+    .gp-section { padding: 12px 0; }
+
+    /* Action buttons */
+    .gp-copy-btn {
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+      margin: 0 16px 8px; height: 32px; background: var(--bg-inset);
+      border: none; color: var(--text-secondary); font-family: inherit;
+      font-size: 12px; font-weight: 500; cursor: pointer;
+    }
+    .gp-copy-btn:last-child { margin-bottom: 16px; }
+    .gp-copy-btn:hover { color: var(--accent-primary); }
+    .gp-copy-btn svg { width: 14px; height: 14px; stroke: currentColor; stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+
+    /* Toast */
+    .gp-toast {
+      position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+      background: var(--accent-primary); color: var(--bg-primary);
+      padding: 8px 20px; border-radius: 6px; font-size: 12px;
+      opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 1001;
+    }
+
+    /* Error */
+    .gp-error { text-align: center; color: var(--text-tertiary); padding: 40px; }
+    .gp-error-title { font-size: 16px; font-weight: 600; margin-bottom: 8px; color: var(--text-secondary); }
+    .gp-error-msg { font-size: 12px; font-family: monospace; }
+  </style>
+</head>
+<body>
+  <!-- Loading state (shown until sketch data arrives) -->
+  <div id="loading-state">
+    <div class="spinner"></div>
+    <span>Loading sketch...</span>
+  </div>
+
+  <!-- Canvas area (hidden until sketch loads) -->
+  <div id="canvas-container" class="hidden"></div>
+
+  <!-- Captured image display (for capture_screenshot results) -->
+  <div id="captured-image" class="hidden"></div>
+
+  <!-- Panel (hidden until sketch loads) -->
+  <div id="genart-panel" class="hidden"></div>
+
+  <!-- Toast -->
+  <div class="gp-toast" id="gp-toast"></div>
+
+  <!-- MCP Apps client bundle (IIFE → __McpApps global) -->
+  <script>/* __MCP_APP_BUNDLE__ */</script>
+
+  <script>
+// ─────────────────────────────────────────────────────────────────────────────
+// State
+// ─────────────────────────────────────────────────────────────────────────────
+var sketch = null;
+var state = null;
+var rendererType = null;
+var colorDefs = [];
+var themes = [];
+var rerender = null;
+var p5Instance = null;
+var toolName = null;  // which tool triggered us
+
+var RENDERER_COLORS = {
+  p5: '#ED225D', three: '#049EF4', glsl: '#5C6BC0',
+  canvas2d: '#FF9800', svg: '#FFB13B', genart: '#7C4DFF'
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MCP App Initialization
+// ─────────────────────────────────────────────────────────────────────────────
+var app = new __McpApps.App(
+  { name: 'genart-sketch-preview', version: '1.0.0' },
+  {},
+  { autoResize: true }
+);
+
+app.ontoolinput = function(params) {
+  var args = params.arguments || {};
+  toolName = args._toolName || null;
+
+  if (args.sketchId) {
+    // Fetch full sketch data via app-only tool
+    app.callServerTool({
+      name: '_get_sketch_data',
+      arguments: { sketchId: args.sketchId }
+    }).then(function(result) {
+      if (result.isError) {
+        showError('Failed to load sketch', result.content && result.content[0] ? result.content[0].text : 'Unknown error');
+        return;
+      }
+      if (result.content && result.content[0] && result.content[0].text) {
+        try {
+          var data = JSON.parse(result.content[0].text);
+          // Apply seed/param overrides from tool arguments
+          if (args.seed !== undefined || args.params !== undefined) {
+            data = JSON.parse(JSON.stringify(data));
+            if (args.seed !== undefined) data.state.seed = args.seed;
+            if (args.params) {
+              for (var k in args.params) data.state.params[k] = args.params[k];
+            }
+          }
+          loadSketch(data);
+        } catch (e) {
+          showError('Failed to parse sketch data', e.message);
+        }
+      }
+    }).catch(function(e) {
+      showError('Failed to fetch sketch', e.message || String(e));
+    });
+  }
+};
+
+app.ontoolresult = function(params) {
+  // For capture_screenshot: show the captured image if no sketch loaded yet
+  if (sketch) return; // already rendering interactively
+  if (!params.content) return;
+
+  for (var i = 0; i < params.content.length; i++) {
+    var block = params.content[i];
+    if (block.type === 'image' && block.data) {
+      showCapturedImage(block.data, block.mimeType || 'image/jpeg');
+      return;
+    }
+  }
+};
+
+app.onhostcontextchanged = function(ctx) {
+  if (ctx.theme) {
+    document.documentElement.setAttribute('data-theme', ctx.theme);
+  }
+  if (ctx.styles && ctx.styles.variables) {
+    __McpApps.applyHostStyleVariables(ctx.styles.variables);
+  }
+};
+
+app.connect();
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Captured Image Display
+// ─────────────────────────────────────────────────────────────────────────────
+function showCapturedImage(base64, mimeType) {
+  document.getElementById('loading-state').classList.add('hidden');
+  document.getElementById('canvas-container').classList.add('hidden');
+
+  var container = document.getElementById('captured-image');
+  container.classList.remove('hidden');
+  var img = document.createElement('img');
+  img.src = 'data:' + mimeType + ';base64,' + base64;
+  container.appendChild(img);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Sketch Loading
+// ─────────────────────────────────────────────────────────────────────────────
+function loadSketch(data) {
+  try {
+    sketch = data;
+    rendererType = typeof sketch.renderer === 'string'
+      ? sketch.renderer
+      : (sketch.renderer && sketch.renderer.type) || 'p5';
+
+    // Build runtime state
+    state = JSON.parse(JSON.stringify(sketch.state));
+    state.canvas = {
+      width: sketch.canvas.width,
+      height: sketch.canvas.height,
+      pixelDensity: sketch.canvas.pixelDensity || 1
+    };
+
+    // p5 uppercase aliases
+    if (rendererType === 'p5') {
+      state.WIDTH = sketch.canvas.width;
+      state.HEIGHT = sketch.canvas.height;
+      state.SEED = state.seed;
+      state.PARAMS = state.params;
+      state.COLORS = {};
+      for (var i = 0; i < (sketch.colors || []).length; i++) {
+        state.COLORS[sketch.colors[i].key] = state.colorPalette[i] || '#000000';
+      }
+    }
+
+    colorDefs = sketch.colors || [];
+    themes = sketch.themes || [];
+
+    // Show canvas + panel, hide loading
+    document.getElementById('loading-state').classList.add('hidden');
+    document.getElementById('captured-image').classList.add('hidden');
+    document.getElementById('canvas-container').classList.remove('hidden');
+    document.getElementById('genart-panel').classList.remove('hidden');
+
+    buildPanel();
+    setupRenderer();
+  } catch (e) {
+    showError('Failed to load sketch', e.message);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Component / Data Extraction (mirrors core adapters)
+// ─────────────────────────────────────────────────────────────────────────────
+function extractComponents(components) {
+  if (!components) return '';
+  var blocks = [];
+  var keys = Object.keys(components);
+  for (var i = 0; i < keys.length; i++) {
+    var val = components[keys[i]];
+    if (typeof val === 'string') continue;
+    if (val && val.code) {
+      var ver = val.version ? ' v' + val.version : '';
+      blocks.push('// --- ' + keys[i] + ver + ' ---\n' + val.code);
+    }
+  }
+  return blocks.join('\n\n');
+}
+
+function extractSymbols(symbols) {
+  if (!symbols) return '';
+  var resolved = {};
+  var keys = Object.keys(symbols);
+  var count = 0;
+  for (var i = 0; i < keys.length; i++) {
+    if (typeof symbols[keys[i]] !== 'string') {
+      resolved[keys[i]] = symbols[keys[i]];
+      count++;
+    }
+  }
+  if (count === 0) return '';
+  return 'const __symbols__ = ' + JSON.stringify(resolved) + ';';
+}
+
+function generateDataCode(data, components) {
+  if (!data) return '';
+  var keys = Object.keys(data);
+  if (keys.length === 0) return '';
+  var lines = ['state.data = {};'];
+  var hasComponent = false;
+  for (var i = 0; i < keys.length; i++) {
+    if (data[keys[i]].source === 'component') { hasComponent = true; break; }
+  }
+  if (hasComponent) {
+    lines.push('var __dataRand = (typeof mulberry32 === "function") ? mulberry32(state.seed) : (function(s) { return function() { s = (s + 0x6d2b79f5) | 0; var t = Math.imul(s ^ (s >>> 15), 1 | s); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; })(state.seed);');
+  }
+  for (var j = 0; j < keys.length; j++) {
+    var key = keys[j];
+    var src = data[key];
+    if (src.source === 'inline') {
+      lines.push('state.data[' + JSON.stringify(key) + '] = ' + JSON.stringify(src.value) + ';');
+    } else if (src.source === 'component') {
+      var factoryName = null;
+      if (src.component && components && components[src.component]) {
+        var comp = components[src.component];
+        if (typeof comp !== 'string' && comp.exports && comp.exports.length > 0) {
+          factoryName = comp.exports[0];
+        }
+      }
+      if (factoryName) {
+        var cfg = JSON.stringify(src.config || {});
+        lines.push('state.data[' + JSON.stringify(key) + '] = ' + factoryName + '(' + cfg + ', { seed: state.seed, rand: __dataRand, width: state.canvas.width, height: state.canvas.height });');
+      }
+    } else if (src.source === 'file') {
+      lines.push('state.data[' + JSON.stringify(key) + '] = null;');
+    }
+  }
+  return lines.join('\n');
+}
+
+// GLSL helpers
+function injectGLSL(algorithm, componentCode) {
+  if (!componentCode) return algorithm;
+  var trimmed = algorithm.trimStart();
+  var versionMatch = trimmed.match(/^(#version\s+\S+[^\n]*\n)/);
+  var versionLine = versionMatch ? versionMatch[1] : '';
+  var body = versionMatch ? trimmed.slice(versionLine.length) : trimmed;
+  var precisionLines = [];
+  var pm;
+  while ((pm = body.match(/^\s*(precision\s+\w+\s+\w+;\s*\n)/)) !== null) {
+    precisionLines.push(pm[1]);
+    body = body.slice(pm[0].length);
+  }
+  return versionLine + precisionLines.join('') + '\n' + componentCode + '\n\n' + body;
+}
+
+function extractGLSLUniforms(source) {
+  var params = [], colors = [];
+  var re = /uniform\s+(?:float|vec[234]|int|mat[234])\s+(u_\w+)/g;
+  var builtins = ['u_resolution', 'u_time', 'u_seed', 'u_mouse', 'u_frame'];
+  var m;
+  while ((m = re.exec(source)) !== null) {
+    var name = m[1];
+    if (builtins.indexOf(name) !== -1) continue;
+    if (/^u_color\d+$/.test(name)) colors.push(name);
+    else params.push(name);
+  }
+  return { params: params, colors: colors };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Renderer Setup
+// ─────────────────────────────────────────────────────────────────────────────
+function setupRenderer() {
+  var area = document.getElementById('canvas-container');
+  switch (rendererType) {
+    case 'canvas2d': setupCanvas2D(area); break;
+    case 'p5':       setupP5(area); break;
+    case 'svg':      setupSVG(area); break;
+    case 'three':    setupThree(area); break;
+    case 'glsl':     setupGLSL(area); break;
+    default: showError('Unsupported renderer', rendererType);
+  }
+}
+
+function syncState() {
+  if (rendererType === 'p5') {
+    state.SEED = state.seed;
+    state.PARAMS = state.params;
+    state.COLORS = {};
+    for (var i = 0; i < colorDefs.length; i++) {
+      state.COLORS[colorDefs[i].key] = state.colorPalette[i] || '#000000';
+    }
+  }
+}
+
+// --- Canvas 2D ---
+function setupCanvas2D(area) {
+  var w = sketch.canvas.width, h = sketch.canvas.height;
+  var pd = sketch.canvas.pixelDensity || 1;
+  var canvas = document.createElement('canvas');
+  canvas.id = 'canvas';
+  canvas.width = w * pd;
+  canvas.height = h * pd;
+  canvas.style.width = w + 'px';
+  canvas.style.height = h + 'px';
+  area.appendChild(canvas);
+
+  var componentCode = extractComponents(sketch.components);
+  var symbolCode = extractSymbols(sketch.symbols);
+  var dataCode = generateDataCode(sketch.data, sketch.components);
+  var algo = sketch.algorithm;
+
+  var fnBody = componentCode + '\n' + symbolCode + '\n' + dataCode + '\n' + algo + '\n' +
+    'var ctx = document.getElementById("canvas").getContext("2d");\n' +
+    'ctx.setTransform(1, 0, 0, 1, 0, 0);\n' +
+    'ctx.clearRect(0, 0, ' + (w * pd) + ', ' + (h * pd) + ');\n' +
+    (pd !== 1 ? 'ctx.scale(' + pd + ', ' + pd + ');\n' : '') +
+    'var module = sketch(ctx, state);\n' +
+    'if (module && module.initializeSystem) module.initializeSystem();\n';
+
+  rerender = function() {
+    syncState();
+    try { new Function('state', fnBody)(state); }
+    catch (e) { console.error('Render error:', e); }
+  };
+  rerender();
+}
+
+// --- p5 ---
+function setupP5(area) {
+  var componentCode = extractComponents(sketch.components);
+  var symbolCode = extractSymbols(sketch.symbols);
+  var dataCode = generateDataCode(sketch.data, sketch.components);
+
+  var script = document.createElement('script');
+  script.src = 'https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.11.3/p5.min.js';
+  script.onload = function() {
+    var fnBody = componentCode + '\n' + symbolCode + '\n' + dataCode + '\n' + sketch.algorithm + '\nreturn sketch;\n';
+    var sketchFactory = new Function('state', fnBody);
+
+    rerender = function() {
+      syncState();
+      if (p5Instance) { p5Instance.remove(); p5Instance = null; }
+      area.innerHTML = '';
+      var sketchFn = sketchFactory(state);
+      p5Instance = new p5(function(p) { sketchFn(p, state); }, area);
+    };
+    rerender();
+  };
+  script.onerror = function() { showError('Failed to load p5.js', 'CDN request failed'); };
+  document.head.appendChild(script);
+}
+
+// --- SVG ---
+function setupSVG(area) {
+  var componentCode = extractComponents(sketch.components);
+  var symbolCode = extractSymbols(sketch.symbols);
+  var dataCode = generateDataCode(sketch.data, sketch.components);
+
+  var fnBody = componentCode + '\n' + symbolCode + '\n' + dataCode + '\n' + sketch.algorithm + '\n' +
+    'var module = sketch(state);\n' +
+    'return module.generate ? module.generate() : module.initializeSystem();\n';
+
+  var svgContainer = document.createElement('div');
+  svgContainer.id = 'svg-container';
+  area.appendChild(svgContainer);
+
+  rerender = function() {
+    syncState();
+    try { svgContainer.innerHTML = new Function('state', fnBody)(state); }
+    catch (e) { console.error('Render error:', e); }
+  };
+  rerender();
+}
+
+// --- Three.js ---
+function setupThree(area) {
+  area.style.width = sketch.canvas.width + 'px';
+  area.style.height = sketch.canvas.height + 'px';
+
+  var componentCode = extractComponents(sketch.components);
+  var symbolCode = extractSymbols(sketch.symbols);
+  var dataCode = generateDataCode(sketch.data, sketch.components);
+  var activeAnimId = null;
+
+  var script = document.createElement('script');
+  script.type = 'module';
+  script.textContent = [
+    "import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.172.0/build/three.module.min.js';",
+    "window.__THREE__ = THREE;",
+    "window.dispatchEvent(new Event('three-ready'));"
+  ].join('\n');
+  document.head.appendChild(script);
+
+  window.addEventListener('three-ready', function() {
+    rerender = function() {
+      syncState();
+      if (activeAnimId) cancelAnimationFrame(activeAnimId);
+      area.innerHTML = '';
+
+      var origRAF = window.requestAnimationFrame;
+      window.requestAnimationFrame = function(cb) {
+        activeAnimId = origRAF.call(window, cb);
+        return activeAnimId;
+      };
+
+      try {
+        var fnBody = 'var THREE = window.__THREE__;\n' + componentCode + '\n' + symbolCode + '\n' + dataCode + '\n' +
+          sketch.algorithm + '\n' +
+          'var module = sketch(THREE, state, document.getElementById("canvas-container"));\n' +
+          'if (module && module.initializeSystem) module.initializeSystem();\n';
+        new Function('state', fnBody)(state);
+      } catch (e) {
+        console.error('Render error:', e);
+      } finally {
+        window.requestAnimationFrame = origRAF;
+      }
+    };
+    rerender();
+  });
+}
+
+// --- GLSL ---
+function setupGLSL(area) {
+  var w = sketch.canvas.width, h = sketch.canvas.height;
+  var pd = sketch.canvas.pixelDensity || 1;
+  var canvas = document.createElement('canvas');
+  canvas.id = 'canvas';
+  canvas.width = w * pd;
+  canvas.height = h * pd;
+  canvas.style.width = w + 'px';
+  canvas.style.height = h + 'px';
+  area.appendChild(canvas);
+
+  var gl = canvas.getContext('webgl2', { preserveDrawingBuffer: true });
+  if (!gl) { showError('WebGL2 not supported', 'Your browser does not support WebGL2.'); return; }
+
+  var glslComponents = '';
+  if (sketch.components) {
+    var keys = Object.keys(sketch.components);
+    for (var i = 0; i < keys.length; i++) {
+      var val = sketch.components[keys[i]];
+      if (typeof val !== 'string' && val && val.code) {
+        glslComponents += '// --- ' + keys[i] + ' ---\n' + val.code + '\n\n';
+      }
+    }
+  }
+  var fragSrc = glslComponents ? injectGLSL(sketch.algorithm, glslComponents) : sketch.algorithm;
+  var uniforms = extractGLSLUniforms(fragSrc);
+
+  var vertSrc = '#version 300 es\nin vec2 a_position;\nvoid main() { gl_Position = vec4(a_position, 0.0, 1.0); }';
+
+  function createShader(type, src) {
+    var s = gl.createShader(type);
+    gl.shaderSource(s, src);
+    gl.compileShader(s);
+    if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s));
+    return s;
+  }
+
+  var program = gl.createProgram();
+  gl.attachShader(program, createShader(gl.VERTEX_SHADER, vertSrc));
+  gl.attachShader(program, createShader(gl.FRAGMENT_SHADER, fragSrc));
+  gl.linkProgram(program);
+  if (!gl.getProgramParameter(program, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(program));
+
+  var positions = new Float32Array([-1,-1, 1,-1, -1,1, -1,1, 1,-1, 1,1]);
+  var buf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  gl.bufferData(gl.ARRAY_BUFFER, positions, gl.STATIC_DRAW);
+  var vao = gl.createVertexArray();
+  gl.bindVertexArray(vao);
+  var aPos = gl.getAttribLocation(program, 'a_position');
+  gl.enableVertexAttribArray(aPos);
+  gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
+  gl.bindVertexArray(null);
+
+  var startTime = performance.now();
+  var animId = null;
+
+  function renderFrame(time) {
+    gl.viewport(0, 0, canvas.width, canvas.height);
+    gl.useProgram(program);
+    gl.bindVertexArray(vao);
+
+    var loc;
+    loc = gl.getUniformLocation(program, 'u_resolution');
+    if (loc) gl.uniform2f(loc, w, h);
+    loc = gl.getUniformLocation(program, 'u_time');
+    if (loc) gl.uniform1f(loc, (time - startTime) / 1000.0);
+    loc = gl.getUniformLocation(program, 'u_seed');
+    if (loc) gl.uniform1f(loc, state.seed);
+
+    for (var i = 0; i < uniforms.params.length; i++) {
+      var u = uniforms.params[i];
+      var key = u.substring(2);
+      loc = gl.getUniformLocation(program, u);
+      if (loc && state.params[key] !== undefined) gl.uniform1f(loc, state.params[key]);
+    }
+    for (var i = 0; i < uniforms.colors.length; i++) {
+      var u = uniforms.colors[i];
+      var idx = parseInt(u.replace('u_color', ''), 10) - 1;
+      loc = gl.getUniformLocation(program, u);
+      if (loc && state.colorPalette[idx]) {
+        var c = state.colorPalette[idx].replace('#', '');
+        gl.uniform3f(loc,
+          parseInt(c.substring(0, 2), 16) / 255,
+          parseInt(c.substring(2, 4), 16) / 255,
+          parseInt(c.substring(4, 6), 16) / 255
+        );
+      }
+    }
+
+    gl.drawArrays(gl.TRIANGLES, 0, 6);
+    if (gl.getUniformLocation(program, 'u_time')) {
+      animId = requestAnimationFrame(renderFrame);
+    }
+  }
+
+  rerender = function() {
+    syncState();
+    if (animId) cancelAnimationFrame(animId);
+    startTime = performance.now();
+    renderFrame(startTime);
+  };
+  rerender();
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Panel Building (matches interactive-panel.ts design)
+// ─────────────────────────────────────────────────────────────────────────────
+function buildPanel() {
+  var panel = document.getElementById('genart-panel');
+  var html = [];
+  var renderer = rendererType;
+  var badgeColor = RENDERER_COLORS[renderer.toLowerCase()] || '#E0E0E0';
+  var rendererLabel = renderer === 'canvas2d' ? 'Canvas 2D' : renderer.toLowerCase();
+
+  // Header
+  html.push('<div class="gp-header">');
+  html.push('<span class="gp-sketch-name">' + esc(sketch.title || sketch.id) + '</span>');
+  html.push('<span class="gp-badge" style="background:' + badgeColor + '">' + esc(rendererLabel) + '</span>');
+  html.push('</div>');
+  html.push('<div class="gp-divider"></div>');
+
+  // Seed
+  html.push('<div class="gp-section-label">SEED</div>');
+  html.push('<div class="gp-seed-row">');
+  html.push('<button class="gp-seed-btn" onclick="seedPrev()"><svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg></button>');
+  html.push('<input class="gp-seed-input" id="gp-seed-val" value="' + state.seed + '" onchange="seedSet(this.value)">');
+  html.push('<button class="gp-seed-btn" onclick="seedNext()"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></button>');
+  html.push('<button class="gp-seed-btn" onclick="seedRandom()"><svg viewBox="0 0 24 24"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/></svg></button>');
+  html.push('</div>');
+  html.push('<div class="gp-divider"></div>');
+
+  // Parameters
+  var params = sketch.parameters || [];
+  if (params.length > 0) {
+    html.push('<div class="gp-section-label">PARAMETERS</div>');
+    html.push('<div class="gp-section">');
+    for (var i = 0; i < params.length; i++) {
+      var p = params[i];
+      var val = state.params[p.key] !== undefined ? state.params[p.key] : p.default;
+      var pct = p.max !== p.min ? ((val - p.min) / (p.max - p.min)) * 100 : 0;
+      html.push('<div class="gp-param">');
+      html.push('<div class="gp-param-header">');
+      html.push('<span class="gp-param-name">' + esc(p.label) + '</span>');
+      html.push('<span class="gp-param-val" id="gp-pv-' + p.key + '">' + val + '</span>');
+      html.push('</div>');
+      html.push('<div class="gp-param-track">');
+      html.push('<div class="gp-param-fill" id="gp-pf-' + p.key + '" style="width:' + pct + '%"></div>');
+      html.push('<input type="range" class="gp-param-input" id="gp-pi-' + p.key + '" min="' + p.min + '" max="' + p.max + '" step="' + p.step + '" value="' + val + '" oninput="paramChange(\'' + p.key + '\',this.value)">');
+      html.push('</div>');
+      html.push('</div>');
+    }
+    html.push('</div>');
+    html.push('<div class="gp-divider"></div>');
+  }
+
+  // Colors
+  if (colorDefs.length > 0) {
+    html.push('<div class="gp-section-label">COLORS</div>');
+    html.push('<div class="gp-section">');
+    html.push('<div class="gp-colors">');
+    for (var i = 0; i < colorDefs.length; i++) {
+      var cv = state.colorPalette[i] || colorDefs[i].default;
+      var isFirst = i === 0 ? ' gp-swatch-active' : '';
+      html.push('<div class="gp-swatch' + isFirst + '" id="gp-sw-' + i + '" style="background:' + cv + '"><input type="color" class="gp-swatch-input" id="gp-ci-' + i + '" value="' + cv + '" onchange="colorChange(' + i + ',this.value)"></div>');
+    }
+    html.push('</div>');
+    html.push('</div>');
+    html.push('<div class="gp-divider"></div>');
+  }
+
+  // Themes
+  if (themes.length > 0) {
+    html.push('<div class="gp-section-label">THEMES</div>');
+    html.push('<div class="gp-section">');
+    html.push('<div class="gp-theme-row">');
+    for (var i = 0; i < themes.length; i++) {
+      var theme = themes[i];
+      var active = i === 0 ? ' active' : '';
+      var dots = (theme.colors || []).slice(0, 3).map(function(c) {
+        return '<span class="gp-theme-dot" style="background:' + c + '"></span>';
+      }).join('');
+      html.push('<button class="gp-theme-btn' + active + '" onclick="themeChange(' + i + ')">' + dots + '</button>');
+    }
+    html.push('</div>');
+    html.push('</div>');
+    html.push('<div class="gp-divider"></div>');
+  }
+
+  // Philosophy
+  if (sketch.philosophy) {
+    html.push('<div class="gp-section-label">PHILOSOPHY</div>');
+    html.push('<div class="gp-section">');
+    html.push('<div class="gp-philosophy">' + esc(sketch.philosophy) + '</div>');
+    html.push('</div>');
+    html.push('<div class="gp-divider"></div>');
+  }
+
+  // File info
+  html.push('<div class="gp-section-label">FILE</div>');
+  html.push('<div class="gp-section">');
+  html.push('<div class="gp-info-grid">');
+  html.push('<span class="gp-info-key">id:</span>');
+  html.push('<span class="gp-info-val">' + esc(sketch.id) + '</span>');
+  html.push('<span class="gp-info-key">renderer:</span>');
+  html.push('<span class="gp-info-val">' + esc(renderer) + '</span>');
+  html.push('<span class="gp-info-key">canvas:</span>');
+  html.push('<span class="gp-info-val">' + sketch.canvas.width + ' \u00d7 ' + sketch.canvas.height + '</span>');
+  if (sketch.agent) {
+    html.push('<span class="gp-info-key">agent:</span>');
+    html.push('<span class="gp-info-val">' + esc(sketch.agent) + '</span>');
+  }
+  html.push('</div>');
+  html.push('</div>');
+  html.push('<div class="gp-divider"></div>');
+
+  // Actions
+  html.push('<div class="gp-section" style="display:flex;flex-direction:column;gap:8px;padding:12px 16px">');
+  html.push('<button class="gp-copy-btn" onclick="downloadScreenshot()"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Download Screenshot</button>');
+  html.push('<button class="gp-copy-btn" onclick="copyState()"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>Copy State JSON</button>');
+  html.push('</div>');
+
+  panel.innerHTML = html.join('\n');
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Panel Interaction Handlers
+// ─────────────────────────────────────────────────────────────────────────────
+function seedPrev() {
+  state.seed = Math.max(0, state.seed - 1);
+  document.getElementById('gp-seed-val').value = state.seed;
+  if (rerender) rerender();
+}
+function seedNext() {
+  state.seed = state.seed + 1;
+  document.getElementById('gp-seed-val').value = state.seed;
+  if (rerender) rerender();
+}
+function seedRandom() {
+  state.seed = Math.floor(Math.random() * 100000);
+  document.getElementById('gp-seed-val').value = state.seed;
+  if (rerender) rerender();
+}
+function seedSet(val) {
+  var s = parseInt(val, 10);
+  if (isNaN(s)) return;
+  state.seed = s;
+  if (rerender) rerender();
+}
+
+function paramChange(key, val) {
+  var v = parseFloat(val);
+  state.params[key] = v;
+  if (state.PARAMS) state.PARAMS[key] = v;
+  var input = document.getElementById('gp-pi-' + key);
+  var pct = ((v - input.min) / (input.max - input.min)) * 100;
+  document.getElementById('gp-pf-' + key).style.width = pct + '%';
+  document.getElementById('gp-pv-' + key).textContent = v;
+  if (rerender) rerender();
+}
+
+function colorChange(idx, val) {
+  state.colorPalette[idx] = val;
+  document.getElementById('gp-sw-' + idx).style.background = val;
+  document.querySelectorAll('.gp-swatch').forEach(function(s) { s.classList.remove('gp-swatch-active'); });
+  document.getElementById('gp-sw-' + idx).classList.add('gp-swatch-active');
+  if (state.COLORS && colorDefs[idx]) state.COLORS[colorDefs[idx].key] = val;
+  if (rerender) rerender();
+}
+
+function themeChange(idx) {
+  var theme = themes[idx];
+  if (!theme) return;
+  document.querySelectorAll('.gp-theme-btn').forEach(function(b) { b.classList.remove('active'); });
+  event.target.closest('.gp-theme-btn').classList.add('active');
+  for (var i = 0; i < theme.colors.length; i++) {
+    state.colorPalette[i] = theme.colors[i];
+    var sw = document.getElementById('gp-sw-' + i);
+    if (sw) sw.style.background = theme.colors[i];
+    var ci = document.getElementById('gp-ci-' + i);
+    if (ci) ci.value = theme.colors[i];
+    if (state.COLORS && colorDefs[i]) state.COLORS[colorDefs[i].key] = theme.colors[i];
+  }
+  if (rerender) rerender();
+}
+
+function downloadScreenshot() {
+  var canvas = document.querySelector('#canvas-container canvas');
+  if (!canvas) { showToast('No canvas found'); return; }
+  try {
+    var link = document.createElement('a');
+    link.download = sketch.id + '_' + state.seed + '.png';
+    link.href = canvas.toDataURL('image/png');
+    // Use MCP Apps download if available
+    if (app.getHostCapabilities && app.getHostCapabilities().downloadFile) {
+      app.openLink({ url: link.href });
+    } else {
+      link.click();
+    }
+    showToast('Screenshot downloaded');
+  } catch (e) {
+    showToast('Could not capture canvas');
+  }
+}
+
+function copyState() {
+  var out = {
+    sketchId: sketch.id,
+    seed: state.seed,
+    params: Object.assign({}, state.params),
+    colors: state.colorPalette.slice()
+  };
+  var json = JSON.stringify(out, null, 2);
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(json).then(function() { showToast('State copied'); });
+  } else {
+    showToast('Clipboard not available in sandbox');
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Utilities
+// ─────────────────────────────────────────────────────────────────────────────
+function esc(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function showToast(msg) {
+  var el = document.getElementById('gp-toast');
+  el.textContent = msg;
+  el.style.opacity = '1';
+  setTimeout(function() { el.style.opacity = '0'; }, 2000);
+}
+
+function showError(title, msg) {
+  document.getElementById('loading-state').classList.add('hidden');
+  document.getElementById('canvas-container').classList.add('hidden');
+  document.getElementById('genart-panel').classList.add('hidden');
+  document.getElementById('captured-image').classList.add('hidden');
+
+  var errorDiv = document.createElement('div');
+  errorDiv.className = 'gp-error';
+  errorDiv.innerHTML = '<div class="gp-error-title">' + esc(title) + '</div><div class="gp-error-msg">' + esc(msg || '') + '</div>';
+  document.body.appendChild(errorDiv);
+}
+  </script>
+</body>
+</html>

@@ -11,6 +11,14 @@ import {
   type RendererType,
 } from "@genart-dev/core";
 import type { EditorState } from "../state.js";
+import {
+  registerAppResource,
+  RESOURCE_MIME_TYPE,
+} from "@modelcontextprotocol/ext-apps/server";
+import {
+  SKETCH_PREVIEW_APP_URI,
+  getSketchPreviewAppHtml,
+} from "../ui/app-html.js";
 
 /** Register all MCP resources on the server. */
 export function registerResources(
@@ -21,6 +29,7 @@ export function registerResources(
   registerCanvasPresetsResource(server);
   registerGalleryResource(server, state);
   registerRenderersResource(server);
+  registerSketchPreviewResource(server);
 }
 
 // ---------------------------------------------------------------------------
@@ -205,5 +214,43 @@ function registerRenderersResource(server: McpServer): void {
         ],
       };
     },
+  );
+}
+
+// ---------------------------------------------------------------------------
+// ui://sketch-preview — MCP App for interactive sketch preview
+// ---------------------------------------------------------------------------
+
+function registerSketchPreviewResource(server: McpServer): void {
+  registerAppResource(
+    server,
+    "Sketch Preview",
+    SKETCH_PREVIEW_APP_URI,
+    {
+      description:
+        "Interactive sketch preview rendered inside the conversation. " +
+        "Supports all 5 renderers (p5, Three.js, GLSL, Canvas 2D, SVG) with " +
+        "parameter sliders, color pickers, seed controls, and theme switching.",
+    },
+    async () => ({
+      contents: [
+        {
+          uri: SKETCH_PREVIEW_APP_URI,
+          mimeType: RESOURCE_MIME_TYPE,
+          text: getSketchPreviewAppHtml(),
+        },
+      ],
+      _meta: {
+        ui: {
+          csp: {
+            // CDN access for renderer scripts (p5.js, Three.js)
+            resourceDomains: [
+              "https://cdnjs.cloudflare.com",
+              "https://cdn.jsdelivr.net",
+            ],
+          },
+        },
+      },
+    }),
   );
 }

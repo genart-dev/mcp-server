@@ -1,6 +1,6 @@
 {
   "name": "@genart-dev/mcp-server",
-  "version": "0.4.41",
+  "version": "0.4.42",
   "description": "MCP server for genart.dev — tools, resources, and prompts for generative art",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -92,6 +92,7 @@
     "@genart-dev/plugin-typography": "^0.2.0",
     "@genart-dev/plugin-water": "^0.1.0",
     "@genart-dev/symbols": "^0.1.0",
+    "@modelcontextprotocol/ext-apps": "1.2.2",
     "@modelcontextprotocol/sdk": "^1.12.0",
     "archiver": "^7.0.1",
     "puppeteer": "^24.0.0",

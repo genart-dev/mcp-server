@@ -108,6 +108,8 @@ import {
 import { registerPluginMcpTools } from "./tools/design-plugins.js";
 import { registerResources } from "./resources/index.js";
 import { registerPrompts } from "./prompts/index.js";
+import { registerAppTool } from "@modelcontextprotocol/ext-apps/server";
+import { SKETCH_PREVIEW_APP_URI } from "./ui/app-html.js";
 
 /** Wrap a tool handler to return MCP-formatted content (text JSON). */
 function jsonResult(data: object) {
@@ -1308,38 +1310,43 @@ function registerSnapshotTools(server: McpServer, state: EditorState): void {
 // ---------------------------------------------------------------------------
 
 function registerCaptureTools(server: McpServer, state: EditorState): void {
-  server.tool(
+  registerAppTool(
+    server,
     "capture_screenshot",
-    "Capture a screenshot of a sketch. Returns an inline JPEG image + metadata as text. In local mode, also writes a full-res PNG to snapshots/<sketchId>-<seed>-preview.png (path in savedPreviewTo). When a previewUrl is present in the metadata, the full-res image is available at that URL for sharing (30-min TTL).\n\nIMPORTANT TIMING: The capture waits only 500ms after page load. For animated p5 sketches that accumulate particles/lines over many frames, the screenshot may appear mostly empty. This is NORMAL — it does NOT mean the algorithm is broken. To verify animated sketches, use `preview_sketch` to open in the browser instead. Only use capture_screenshot for single-frame renderers (canvas2d) or after confirming the sketch works in the browser preview.",
     {
-      target: z
-        .enum(["selected", "sketch"])
-        .optional()
-        .describe("What to capture (default: selected)"),
-      sketchId: z
-        .string()
-        .optional()
-        .describe("Required when target is 'sketch'"),
-      width: z
-        .number()
-        .optional()
-        .describe("Output width in pixels (default: sketch canvas width)"),
-      height: z
-        .number()
-        .optional()
-        .describe("Output height in pixels (default: sketch canvas height)"),
-      seed: z
-        .number()
-        .optional()
-        .describe("Override seed for this capture only"),
-      params: z
-        .record(z.number())
-        .optional()
-        .describe("Override params for this capture only"),
-      previewSize: z
-        .number()
-        .optional()
-        .describe("Max dimension for inline preview JPEG (default: 400)"),
+      description:
+        "Capture a screenshot of a sketch. Returns an inline JPEG image + metadata as text. In local mode, also writes a full-res PNG to snapshots/<sketchId>-<seed>-preview.png (path in savedPreviewTo). When a previewUrl is present in the metadata, the full-res image is available at that URL for sharing (30-min TTL). In MCP Apps-capable clients, the captured image renders inline in the conversation.\n\nIMPORTANT TIMING: The capture waits only 500ms after page load. For animated p5 sketches that accumulate particles/lines over many frames, the screenshot may appear mostly empty. This is NORMAL — it does NOT mean the algorithm is broken. To verify animated sketches, use `preview_sketch` to open in the browser instead. Only use capture_screenshot for single-frame renderers (canvas2d) or after confirming the sketch works in the browser preview.",
+      inputSchema: {
+        target: z
+          .enum(["selected", "sketch"])
+          .optional()
+          .describe("What to capture (default: selected)"),
+        sketchId: z
+          .string()
+          .optional()
+          .describe("Required when target is 'sketch'"),
+        width: z
+          .number()
+          .optional()
+          .describe("Output width in pixels (default: sketch canvas width)"),
+        height: z
+          .number()
+          .optional()
+          .describe("Output height in pixels (default: sketch canvas height)"),
+        seed: z
+          .number()
+          .optional()
+          .describe("Override seed for this capture only"),
+        params: z
+          .record(z.number())
+          .optional()
+          .describe("Override params for this capture only"),
+        previewSize: z
+          .number()
+          .optional()
+          .describe("Max dimension for inline preview JPEG (default: 400)"),
+      },
+      _meta: { ui: { resourceUri: SKETCH_PREVIEW_APP_URI } },
     },
     async (args) => {
       try {
@@ -1870,24 +1877,63 @@ function registerExportTools(server: McpServer, state: EditorState): void {
 // ---------------------------------------------------------------------------
 
 function registerPreviewTools(server: McpServer, state: EditorState): void {
-  server.tool(
+  registerAppTool(
+    server,
     "preview_sketch",
-    "Open an interactive HTML preview of a sketch in the browser with parameter sliders, color pickers, and seed controls. Call this after update_algorithm to let the user explore changes interactively. Preview already opens automatically on create_sketch — only call this for re-previewing after updates.",
     {
-      sketchId: z.string().describe("ID of the sketch to preview"),
-      seed: z
-        .number()
-        .optional()
-        .describe("Override seed for the preview"),
-      params: z
-        .record(z.number())
-        .optional()
-        .describe("Override params for the preview"),
+      description:
+        "Open an interactive HTML preview of a sketch in the browser with parameter sliders, color pickers, and seed controls. Call this after update_algorithm to let the user explore changes interactively. Preview already opens automatically on create_sketch — only call this for re-previewing after updates. In MCP Apps-capable clients (Claude Desktop, claude.ai), the preview renders inline in the conversation.",
+      inputSchema: {
+        sketchId: z.string().describe("ID of the sketch to preview"),
+        seed: z
+          .number()
+          .optional()
+          .describe("Override seed for the preview"),
+        params: z
+          .record(z.number())
+          .optional()
+          .describe("Override params for the preview"),
+      },
+      _meta: { ui: { resourceUri: SKETCH_PREVIEW_APP_URI } },
     },
     async (args) => {
       try {
         const result = await previewSketch(state, args);
         return jsonResult(result.metadata);
+      } catch (e) {
+        return toolError(e instanceof Error ? e.message : String(e));
+      }
+    },
+  );
+
+  // App-only tool: fetch full sketch data for rendering in the preview app.
+  // Not visible to the model — only callable by the MCP App iframe.
+  registerAppTool(
+    server,
+    "_get_sketch_data",
+    {
+      description: "Get full sketch definition for rendering in the preview app",
+      inputSchema: {
+        sketchId: z.string().describe("ID of the sketch to fetch"),
+      },
+      _meta: {
+        ui: {
+          resourceUri: SKETCH_PREVIEW_APP_URI,
+          visibility: ["app"],
+        },
+      },
+    },
+    async (args: { sketchId: string }) => {
+      try {
+        const loaded = state.requireSketch(args.sketchId);
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify(loaded.definition),
+            },
+          ],
+        };
       } catch (e) {
         return toolError(e instanceof Error ? e.message : String(e));
       }

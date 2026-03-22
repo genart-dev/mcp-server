@@ -35,14 +35,15 @@ describe("MCP resources", () => {
   });
 
   describe("listResources", () => {
-    it("lists all 4 registered resources", async () => {
+    it("lists all 5 registered resources", async () => {
       const result = await client.listResources();
       const uris = result.resources.map((r) => r.uri);
       expect(uris).toContain("genart://skills");
       expect(uris).toContain("genart://presets/canvas");
       expect(uris).toContain("genart://gallery");
       expect(uris).toContain("genart://renderers");
-      expect(result.resources.length).toBe(4);
+      expect(uris).toContain("ui://sketch-preview");
+      expect(result.resources.length).toBe(5);
     });
 
     it("includes descriptions for all resources", async () => {
@@ -221,6 +222,39 @@ describe("MCP resources", () => {
           expect(dep).toHaveProperty("cdnUrl");
         }
       }
+    });
+  });
+
+  describe("ui://sketch-preview (MCP App)", () => {
+    it("returns HTML with MCP App MIME type", async () => {
+      const result = await client.readResource({ uri: "ui://sketch-preview" });
+      expect(result.contents).toHaveLength(1);
+      expect(result.contents[0].uri).toBe("ui://sketch-preview");
+      expect(result.contents[0].mimeType).toBe("text/html;profile=mcp-app");
+    });
+
+    it("returns self-contained HTML with app bundle", async () => {
+      const result = await client.readResource({ uri: "ui://sketch-preview" });
+      const html = result.contents[0].text as string;
+      expect(html).toContain("<!DOCTYPE html>");
+      expect(html).toContain("genart-sketch-preview");
+      expect(html).toContain("__McpApps");
+      expect(html).toContain("canvas-container");
+    });
+
+    it("includes renderer loading for p5 and Three.js CDNs", async () => {
+      const result = await client.readResource({ uri: "ui://sketch-preview" });
+      const html = result.contents[0].text as string;
+      expect(html).toContain("cdnjs.cloudflare.com/ajax/libs/p5.js");
+      expect(html).toContain("cdn.jsdelivr.net/npm/three");
+    });
+
+    it("includes interactive panel CSS", async () => {
+      const result = await client.readResource({ uri: "ui://sketch-preview" });
+      const html = result.contents[0].text as string;
+      expect(html).toContain("gp-seed-row");
+      expect(html).toContain("gp-param-fill");
+      expect(html).toContain("gp-swatch");
     });
   });
 });
