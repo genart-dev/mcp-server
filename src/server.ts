@@ -458,7 +458,7 @@ function registerSketchTools(server: McpServer, state: EditorState): void {
         .describe("Path to workspace to add sketch to after creation"),
       agent: z.string().optional().describe("Your CLI agent name (e.g. 'claude-code', 'codex-cli', 'gemini-cli', 'opencode', 'kiro')"),
       model: z.string().optional().describe("Your AI model identifier (e.g. 'claude-opus-4-6', 'gpt-4o', 'gemini-2.5-pro')"),
-      capture: z.boolean().optional().describe("When true, automatically capture a screenshot after creation and return it inline (avoids a separate capture_screenshot call)"),
+      capture: z.boolean().optional().describe("When true, automatically capture a screenshot after creation and return it inline (avoids a separate capture_screenshot call)."),
       preview: z.boolean().optional().describe("Generate an interactive HTML preview with sliders/pickers/seed controls and open it in the browser (default: true). Set to false to skip."),
     },
     async (args) => {
@@ -1310,7 +1310,7 @@ function registerSnapshotTools(server: McpServer, state: EditorState): void {
 function registerCaptureTools(server: McpServer, state: EditorState): void {
   server.tool(
     "capture_screenshot",
-    "Capture a screenshot of a sketch. Returns an inline JPEG image + metadata as text. In local mode, also writes a full-res PNG to snapshots/<sketchId>-<seed>-preview.png (path in savedPreviewTo).\n\nIMPORTANT TIMING: The capture waits only 500ms after page load. For animated p5 sketches that accumulate particles/lines over many frames, the screenshot may appear mostly empty. This is NORMAL — it does NOT mean the algorithm is broken. To verify animated sketches, use `preview_sketch` to open in the browser instead. Only use capture_screenshot for single-frame renderers (canvas2d) or after confirming the sketch works in the browser preview.",
+    "Capture a screenshot of a sketch. Returns an inline JPEG image + metadata as text. In local mode, also writes a full-res PNG to snapshots/<sketchId>-<seed>-preview.png (path in savedPreviewTo). When a previewUrl is present in the metadata, the full-res image is available at that URL for sharing (30-min TTL).\n\nIMPORTANT TIMING: The capture waits only 500ms after page load. For animated p5 sketches that accumulate particles/lines over many frames, the screenshot may appear mostly empty. This is NORMAL — it does NOT mean the algorithm is broken. To verify animated sketches, use `preview_sketch` to open in the browser instead. Only use capture_screenshot for single-frame renderers (canvas2d) or after confirming the sketch works in the browser preview.",
     {
       target: z
         .enum(["selected", "sketch"])
