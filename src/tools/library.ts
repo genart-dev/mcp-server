@@ -6,7 +6,7 @@
 import {
   LIBRARY_PRESETS,
   listLibraryPresets,
-} from "@genart-dev/core";
+} from "./library-presets.js";
 
 // ---------------------------------------------------------------------------
 // list_libraries

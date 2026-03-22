@@ -10,12 +10,10 @@ import {
   createDefaultRegistry,
   parseGenart,
   resolveComponents,
-  resolveLibraries,
   resolvePreset,
   serializeGenart,
   serializeWorkspace,
   type ColorDef,
-  type LibraryDependency,
   type ParamDef,
   type RendererType,
   type SketchComponentDef,
@@ -26,6 +24,7 @@ import {
   type ThemeDef,
   type AlgorithmDataChannel,
 } from "@genart-dev/core";
+import { resolveLibraries, type LibraryDependency } from "./library-presets.js";
 import { EditorState } from "../state.js";
 
 // ---------------------------------------------------------------------------

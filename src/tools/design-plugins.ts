@@ -127,7 +127,12 @@ export function registerPluginMcpTools(
   registry: PluginRegistry,
   state: EditorState,
 ): void {
+  const registered = new Set<string>();
   for (const tool of registry.getMcpTools()) {
+    // Skip duplicate tool names (e.g. multiple plugins defining add_clouds)
+    if (registered.has(tool.name)) continue;
+    registered.add(tool.name);
+
     // Convert the plugin's JSON Schema to a Zod raw shape so the
     // MCP SDK recognizes it as a parameter schema (not annotations).
     const zodShape = pluginSchemaToZodShape(tool.definition.inputSchema);
