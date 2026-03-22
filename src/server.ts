@@ -466,27 +466,32 @@ function registerSketchTools(server: McpServer, state: EditorState): void {
         const result = await createSketch(state, args);
         const shouldPreview = args.preview !== false; // default true
 
-        // If capture requested and we're in local mode (capture tools available),
-        // run headless capture and return image inline with metadata.
-        if (args.capture && !state.remoteMode) {
+        // If capture requested, run headless capture and return image inline.
+        // Works in both local mode (Puppeteer) and remote mode (render service delegation).
+        if (args.capture) {
           try {
             const captureResult = await captureScreenshot(state, {
               target: "sketch",
               sketchId: args.id,
             });
-            return {
-              content: [
-                { type: "text" as const, text: JSON.stringify({
-                  ...result,
-                  capture: captureResult.metadata,
-                }, null, 2) },
-                {
-                  type: "image" as const,
-                  data: captureResult.previewJpegBase64,
-                  mimeType: "image/jpeg" as const,
-                },
-              ],
-            };
+            const content: any[] = [
+              { type: "text" as const, text: JSON.stringify({
+                ...result,
+                capture: captureResult.metadata,
+              }, null, 2) },
+              {
+                type: "image" as const,
+                data: captureResult.previewJpegBase64,
+                mimeType: "image/jpeg" as const,
+              },
+            ];
+            if (captureResult.previewUrl) {
+              content.push({
+                type: "text" as const,
+                text: `![sketch preview](${captureResult.previewUrl})`,
+              });
+            }
+            return { content };
           } catch (captureErr) {
             // Capture failed but sketch was created successfully — return sketch result with capture error
             return jsonResult({
