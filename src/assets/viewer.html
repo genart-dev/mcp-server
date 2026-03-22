@@ -15,27 +15,34 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>genart.dev Viewer</title>
   <style>
-    :root {
-      --gp-bg: #0a0a0a;
-      --gp-panel: #141414;
-      --gp-border: #2a2a2a;
-      --gp-text: #f0f0f0;
-      --gp-text-secondary: #aaaaaa;
-      --gp-text-muted: #666666;
-      --gp-accent: #c4342d;
-      --gp-input-bg: #1a1a1a;
-      --gp-input-border: #333333;
-      --gp-slider-track: #333333;
-      --gp-slider-thumb: #c4342d;
-    }
+    /* --- Shared layout --- */
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      background: var(--gp-bg);
-      color: var(--gp-text);
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans-serif;
-      font-size: 13px;
-      display: flex;
-      min-height: 100vh;
+    body { display: flex; height: 100vh; background: var(--bg-primary, #0A0A0A); overflow: hidden; }
+
+    /* --- Theme tokens (genart.dev design system) --- */
+    :root {
+      --bg-primary: #0A0A0A;
+      --bg-surface: #1A1A1A;
+      --bg-inset: #0A0A0A;
+      --text-primary: #FFFFFF;
+      --text-secondary: #999999;
+      --text-tertiary: #666666;
+      --text-muted: #3A3A3A;
+      --accent-primary: #E0E0E0;
+      --border: #3A3A3A;
+    }
+    @media (prefers-color-scheme: light) {
+      :root:not([data-theme="dark"]) {
+        --bg-primary: #FAFAFA;
+        --bg-surface: #FFFFFF;
+        --bg-inset: #E5E5E5;
+        --text-primary: #0A0A0A;
+        --text-secondary: #666666;
+        --text-tertiary: #999999;
+        --text-muted: #CCCCCC;
+        --accent-primary: #333333;
+        --border: #E5E5E5;
+      }
     }
 
     /* Canvas area */
@@ -46,9 +53,10 @@
       align-items: center;
       min-width: 0;
       position: relative;
+      overflow: hidden;
     }
-    #canvas-area canvas, #canvas-area svg { display: block; max-width: 100%; max-height: 100vh; }
-    #svg-container svg { display: block; width: 100%; height: auto; max-width: 100vw; max-height: 100vh; }
+    #canvas-area canvas { display: block; max-width: 100%; max-height: 100vh; }
+    #svg-container svg { display: block; width: 100%; height: auto; max-width: 100%; max-height: 100vh; }
 
     /* Loading / drop zone */
     #drop-zone {
@@ -59,18 +67,18 @@
       gap: 16px;
       width: 100%;
       height: 100%;
-      color: var(--gp-text-muted);
+      color: var(--text-tertiary);
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      font-size: 14px;
     }
-    #drop-zone.drag-over { background: rgba(196, 52, 45, 0.08); }
-    #drop-zone svg { opacity: 0.3; }
-    .drop-label { font-size: 14px; }
-    .drop-sub { font-size: 12px; color: var(--gp-text-muted); }
+    #drop-zone.drag-over { background: rgba(255, 255, 255, 0.04); }
+    #drop-zone svg { opacity: 0.3; stroke: currentColor; }
+    .drop-sub { font-size: 12px; color: var(--text-muted); }
     .file-btn {
-      background: var(--gp-accent);
-      color: #fff;
+      background: var(--accent-primary);
+      color: var(--bg-primary);
       border: none;
       padding: 8px 20px;
-      border-radius: 6px;
       font-size: 13px;
       cursor: pointer;
       font-family: inherit;
@@ -78,118 +86,157 @@
     .file-btn:hover { opacity: 0.9; }
     #file-input { display: none; }
 
-    /* Panel */
+    /* --- Panel --- */
     #genart-panel {
       width: 320px;
       min-width: 320px;
-      background: var(--gp-panel);
-      border-left: 1px solid var(--gp-border);
+      background: var(--bg-surface);
+      border-left: 1px solid var(--border);
       overflow-y: auto;
       display: none;
       flex-direction: column;
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      font-size: 12px;
+      color: var(--text-primary);
     }
-    .gp-header { padding: 16px; border-bottom: 1px solid var(--gp-border); }
-    .gp-header-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
-    .gp-brand { font-size: 13px; font-weight: 600; color: var(--gp-text-secondary); letter-spacing: -0.3px; }
-    .gp-title { font-size: 15px; font-weight: 600; margin-bottom: 2px; }
-    .gp-filename { font-size: 12px; color: var(--gp-text-muted); font-family: 'SF Mono', Menlo, Consolas, monospace; }
-    .gp-meta-row { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+
+    /* Divider */
+    .gp-divider { height: 1px; background: var(--border); width: 100%; flex-shrink: 0; }
+
+    /* Section label */
+    .gp-section-label {
+      font-size: 11px; font-weight: 600; letter-spacing: 2px;
+      text-transform: uppercase; color: var(--text-tertiary);
+      padding: 12px 16px 4px;
+    }
+    .gp-section-label-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 16px 4px;
+    }
+    .gp-section-label-row .gp-section-label { padding: 0; }
+    .gp-close-btn {
+      width: 24px; height: 24px; background: none; border: none;
+      color: var(--text-tertiary); cursor: pointer; display: flex;
+      align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    .gp-close-btn:hover { color: var(--text-primary); }
+    .gp-close-btn svg { width: 14px; height: 14px; stroke: currentColor; stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+
+    /* Panel toggle (shows when panel is hidden) */
+    .gp-toggle-btn {
+      position: fixed; top: 12px; right: 12px; width: 36px; height: 36px;
+      background: var(--bg-surface); border: 1px solid var(--border);
+      color: var(--text-secondary); cursor: pointer; display: none;
+      align-items: center; justify-content: center; z-index: 100;
+    }
+    .gp-toggle-btn:hover { color: var(--text-primary); }
+    .gp-toggle-btn svg { width: 18px; height: 18px; stroke: currentColor; stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+
+    /* Header */
+    .gp-header {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 8px; padding: 8px 16px; min-height: 40px;
+    }
+    .gp-sketch-name {
+      font-size: 14px; font-weight: 600; color: var(--text-primary);
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
     .gp-badge {
-      display: inline-block; padding: 2px 8px; border-radius: 3px;
-      font-size: 10px; font-weight: 600; text-transform: uppercase;
-      letter-spacing: 0.5px; background: var(--gp-accent); color: #fff;
-    }
-    .gp-seed-display { font-size: 12px; color: var(--gp-text-secondary); font-family: 'SF Mono', Menlo, Consolas, monospace; }
-    .gp-reseed-btn {
-      margin-left: auto; background: none; border: 1px solid var(--gp-border);
-      color: var(--gp-text-secondary); padding: 3px 10px; border-radius: 4px;
-      font-size: 11px; cursor: pointer; font-family: inherit;
-    }
-    .gp-reseed-btn:hover { background: #1e1e1e; color: var(--gp-text); }
-
-    /* Sections */
-    .gp-section { padding: 14px 16px; border-bottom: 1px solid var(--gp-border); }
-    .gp-section-title {
-      font-size: 10px; text-transform: uppercase; letter-spacing: 1px;
-      color: var(--gp-text-muted); margin-bottom: 12px; font-weight: 600;
+      display: inline-flex; align-items: center; padding: 2px 6px;
+      border-radius: 3px; font-family: 'JetBrains Mono', 'SF Mono', 'Menlo', monospace;
+      font-size: 10px; font-weight: 700; color: #fff; flex-shrink: 0;
     }
 
-    /* Params */
-    .gp-param-row { display: flex; align-items: center; margin-bottom: 10px; }
-    .gp-param-row:last-child { margin-bottom: 0; }
-    .gp-param-label { flex: 0 0 auto; font-size: 12px; color: var(--gp-text-secondary); margin-right: 12px; }
-    .gp-param-slider {
-      flex: 1; -webkit-appearance: none; appearance: none; height: 3px;
-      background: var(--gp-slider-track); border-radius: 2px; outline: none; margin: 0 10px;
+    /* Seed controls */
+    .gp-seed-row { display: flex; gap: 8px; align-items: center; padding: 0 16px 12px; }
+    .gp-seed-btn {
+      width: 32px; height: 32px; background: var(--bg-inset); border: none;
+      color: var(--text-secondary); cursor: pointer; display: flex;
+      align-items: center; justify-content: center; flex-shrink: 0;
     }
-    .gp-param-slider::-webkit-slider-thumb {
-      -webkit-appearance: none; width: 12px; height: 12px;
-      border-radius: 50%; background: var(--gp-slider-thumb); cursor: pointer;
-    }
-    .gp-param-value {
-      flex: 0 0 auto; min-width: 36px; font-size: 12px; color: var(--gp-accent);
-      text-align: right; font-family: 'SF Mono', Menlo, Consolas, monospace;
-    }
-
-    /* Colors */
-    .gp-color-row { display: flex; align-items: center; margin-bottom: 8px; }
-    .gp-color-row:last-child { margin-bottom: 0; }
-    .gp-color-label { flex: 1; font-size: 12px; color: var(--gp-text-secondary); }
-    .gp-color-input {
-      width: 32px; height: 24px; border: 1px solid var(--gp-border);
-      border-radius: 4px; background: none; cursor: pointer; padding: 0;
+    .gp-seed-btn:hover { color: var(--accent-primary); }
+    .gp-seed-btn svg { width: 16px; height: 16px; stroke: currentColor; stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+    .gp-seed-input {
+      flex: 1; height: 32px; background: var(--bg-inset); border: none;
+      color: var(--accent-primary); font-family: 'JetBrains Mono', 'SF Mono', 'Menlo', monospace;
+      font-size: 13px; font-weight: 600; text-align: center; outline: none;
+      padding: 0 8px; min-width: 0;
     }
 
-    /* Themes */
-    .gp-theme-select {
-      width: 100%; background: var(--gp-input-bg); border: 1px solid var(--gp-input-border);
-      color: var(--gp-text); border-radius: 4px; padding: 6px 8px; font-size: 12px; font-family: inherit;
+    /* Parameter slider */
+    .gp-param { padding: 0 16px; display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+    .gp-param:last-child { margin-bottom: 0; }
+    .gp-param-header { display: flex; justify-content: space-between; align-items: center; }
+    .gp-param-name { font-size: 12px; font-weight: 500; color: var(--text-primary); }
+    .gp-param-val { font-family: 'JetBrains Mono', 'SF Mono', 'Menlo', monospace; font-size: 12px; font-weight: 600; color: var(--accent-primary); }
+    .gp-param-track { position: relative; width: 100%; height: 6px; background: var(--bg-inset); border-radius: 3px; overflow: hidden; }
+    .gp-param-fill { position: absolute; left: 0; top: 0; bottom: 0; background: var(--accent-primary); border-radius: 3px; }
+    .gp-param-input { position: absolute; left: 0; top: -7px; width: 100%; height: 20px; opacity: 0; cursor: pointer; margin: 0; }
+
+    /* Color swatches */
+    .gp-colors { display: flex; gap: 8px; padding: 0 16px; flex-wrap: wrap; }
+    .gp-swatch { width: 28px; height: 28px; border: none; cursor: pointer; position: relative; flex-shrink: 0; }
+    .gp-swatch-active { outline: 2px solid var(--accent-primary); outline-offset: -2px; }
+    .gp-swatch-input { position: absolute; left: 0; top: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+
+    /* Theme selector */
+    .gp-theme-row { display: flex; gap: 8px; padding: 0 16px; }
+    .gp-theme-btn {
+      display: flex; align-items: center; justify-content: center; gap: 4px;
+      flex: 1; height: 32px; background: var(--bg-inset); border: none;
+      color: var(--text-tertiary); font-family: inherit; font-size: 11px; cursor: pointer;
     }
+    .gp-theme-btn.active { background: var(--border); color: var(--accent-primary); outline: 1px solid var(--accent-primary); outline-offset: -1px; }
+    .gp-theme-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
 
     /* Philosophy */
-    .gp-philosophy { font-size: 12px; line-height: 1.5; color: var(--gp-text-muted); white-space: pre-wrap; }
+    .gp-philosophy { font-size: 12px; line-height: 1.5; color: var(--text-tertiary); padding: 0 16px; }
 
     /* File info */
-    .gp-info-grid { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; font-size: 11px; }
-    .gp-info-key { color: var(--gp-text-muted); }
-    .gp-info-val { color: var(--gp-text-secondary); font-family: 'SF Mono', Menlo, Consolas, monospace; }
+    .gp-info-grid { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; font-size: 11px; padding: 0 16px; }
+    .gp-info-key { color: var(--text-tertiary); }
+    .gp-info-val { color: var(--text-secondary); font-family: 'JetBrains Mono', 'SF Mono', 'Menlo', monospace; }
 
-    /* Copy State button */
+    /* Section */
+    .gp-section { padding: 12px 0; }
+
+    /* Action buttons */
     .gp-copy-btn {
-      width: 100%; background: var(--gp-input-bg); border: 1px solid var(--gp-input-border);
-      color: var(--gp-text-secondary); padding: 8px; border-radius: 4px;
-      font-size: 12px; cursor: pointer; font-family: inherit; margin-top: 10px;
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+      margin: 0 16px 8px; height: 32px; background: var(--bg-inset);
+      border: none; color: var(--text-secondary); font-family: inherit;
+      font-size: 12px; font-weight: 500; cursor: pointer;
     }
-    .gp-copy-btn:hover { background: #1e1e1e; color: var(--gp-text); }
+    .gp-copy-btn:last-child { margin-bottom: 16px; }
+    .gp-copy-btn:hover { color: var(--accent-primary); }
+    .gp-copy-btn svg { width: 14px; height: 14px; stroke: currentColor; stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; }
 
     /* Toast */
     .gp-toast {
       position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
-      background: var(--gp-accent); color: #fff; padding: 8px 20px;
-      border-radius: 6px; font-size: 12px; opacity: 0; transition: opacity 0.3s;
-      pointer-events: none; z-index: 1001;
+      background: var(--accent-primary); color: var(--bg-primary);
+      padding: 8px 20px; border-radius: 6px; font-size: 12px;
+      opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 1001;
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
     }
 
     /* Error */
-    .gp-error {
-      background: #2a1515; border: 1px solid #5a2020; padding: 16px;
-      border-radius: 8px; max-width: 500px; font-size: 13px; line-height: 1.5;
-    }
-    .gp-error-title { color: var(--gp-accent); font-weight: 600; margin-bottom: 8px; }
-    .gp-error-msg { color: var(--gp-text-secondary); font-family: 'SF Mono', Menlo, Consolas, monospace; font-size: 12px; }
+    .gp-error { text-align: center; color: var(--text-tertiary); padding: 40px; font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+    .gp-error-title { font-size: 16px; font-weight: 600; margin-bottom: 8px; color: var(--text-secondary); }
+    .gp-error-msg { font-size: 12px; font-family: 'JetBrains Mono', 'SF Mono', 'Menlo', monospace; color: var(--text-tertiary); }
   </style>
 </head>
 <body>
 
 <div id="canvas-area">
   <div id="drop-zone">
-    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke-width="1.5">
       <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
       <polyline points="14 2 14 8 20 8"/>
       <line x1="12" y1="18" x2="12" y2="12"/>
       <polyline points="9 15 12 12 15 15"/>
     </svg>
-    <div class="drop-label">Drop a .genart file here</div>
+    <div>Drop a .genart file here</div>
     <div class="drop-sub">or</div>
     <button class="file-btn" onclick="document.getElementById('file-input').click()">Choose file</button>
     <input type="file" id="file-input" accept=".genart" />
@@ -197,6 +244,7 @@
 </div>
 
 <div id="genart-panel"></div>
+<button class="gp-toggle-btn" id="gp-toggle" onclick="togglePanel()"><svg viewBox="0 0 24 24"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg></button>
 <div class="gp-toast" id="gp-toast"></div>
 
 <script>
@@ -208,24 +256,28 @@ var __GENART_DATA__ = null;
 // ---------------------------------------------------------------------------
 // State
 // ---------------------------------------------------------------------------
-var sketch = null;         // parsed SketchDefinition
-var state = null;          // mutable runtime state
+var sketch = null;
+var state = null;
 var rendererType = null;
 var colorDefs = [];
 var themes = [];
-var rerender = null;       // set by renderer setup
+var rerender = null;
+var p5Instance = null;
+
+var RENDERER_COLORS = {
+  p5: '#ED225D', three: '#049EF4', glsl: '#5C6BC0',
+  canvas2d: '#FF9800', svg: '#FFB13B', genart: '#7C4DFF'
+};
 
 // ---------------------------------------------------------------------------
 // Initialization
 // ---------------------------------------------------------------------------
 (function init() {
-  // Mode 1: Embedded data
   if (__GENART_DATA__) {
     loadSketch(__GENART_DATA__);
     return;
   }
 
-  // Mode 2: URL param
   var params = new URLSearchParams(location.search);
   var filePath = params.get('file');
   if (filePath) {
@@ -236,7 +288,6 @@ var rerender = null;       // set by renderer setup
     return;
   }
 
-  // Mode 3: File picker / drag-and-drop
   setupDropZone();
 })();
 
@@ -306,10 +357,8 @@ function loadSketch(data) {
     colorDefs = sketch.colors || [];
     themes = sketch.themes || [];
 
-    // Update document title
-    document.title = sketch.title + ' — genart.dev';
+    document.title = sketch.title + ' \u2014 genart.dev';
 
-    // Hide drop zone, show canvas area and panel
     var zone = document.getElementById('drop-zone');
     if (zone) zone.style.display = 'none';
 
@@ -330,7 +379,7 @@ function extractComponents(components) {
   for (var i = 0; i < keys.length; i++) {
     var name = keys[i];
     var val = components[name];
-    if (typeof val === 'string') continue; // unresolved
+    if (typeof val === 'string') continue;
     if (val && val.code) {
       var ver = val.version ? ' v' + val.version : '';
       blocks.push('// --- ' + name + ver + ' ---\n' + val.code);
@@ -354,10 +403,6 @@ function extractSymbols(symbols) {
   return 'const __symbols__ = ' + JSON.stringify(resolved) + ';';
 }
 
-/**
- * Generate JS code that resolves data sources and populates state.data.
- * Mirrors core/src/sketch/adapters/component-utils.ts#generateDataInjection.
- */
 function generateDataCode(data, components) {
   if (!data) return '';
   var keys = Object.keys(data);
@@ -428,94 +473,125 @@ function extractGLSLUniforms(source) {
 }
 
 // ---------------------------------------------------------------------------
-// Build interactive panel
+// Build interactive panel (matches genart-sketch-preview.pen design)
 // ---------------------------------------------------------------------------
 function buildPanel() {
   var panel = document.getElementById('genart-panel');
   var html = [];
-  var filename = sketch.id + '.genart';
-  var renderer = rendererType.toUpperCase();
+  var renderer = rendererType;
+  var badgeColor = RENDERER_COLORS[renderer.toLowerCase()] || '#E0E0E0';
+  var rendererLabel = renderer === 'canvas2d' ? 'Canvas 2D' : renderer.toLowerCase();
 
   // Header
+  html.push('<div class="gp-section-label-row">');
+  html.push('<span class="gp-section-label">PROPERTIES</span>');
+  html.push('<button class="gp-close-btn" onclick="togglePanel()"><svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>');
+  html.push('</div>');
   html.push('<div class="gp-header">');
-  html.push('<div class="gp-header-top">');
-  html.push('<span class="gp-brand">genart.dev</span>');
-  html.push('<span class="gp-filename">' + esc(filename) + '</span>');
+  html.push('<span class="gp-sketch-name">' + esc(sketch.title || sketch.id) + '</span>');
+  html.push('<span class="gp-badge" style="background:' + badgeColor + '">' + esc(rendererLabel) + '</span>');
   html.push('</div>');
-  html.push('<div class="gp-title">' + esc(sketch.title) + '</div>');
-  html.push('<div class="gp-meta-row">');
-  html.push('<span class="gp-badge">' + esc(renderer) + '</span>');
-  html.push('<span class="gp-seed-display">seed: <span id="gp-seed-val">' + state.seed + '</span></span>');
-  html.push('<button class="gp-reseed-btn" onclick="seedRandom()">&#x21bb; reseed</button>');
+  html.push('<div class="gp-divider"></div>');
+
+  // Seed
+  html.push('<div class="gp-section-label">SEED</div>');
+  html.push('<div class="gp-seed-row">');
+  html.push('<button class="gp-seed-btn" onclick="seedPrev()"><svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg></button>');
+  html.push('<input class="gp-seed-input" id="gp-seed-val" value="' + state.seed + '" onchange="seedSet(this.value)">');
+  html.push('<button class="gp-seed-btn" onclick="seedNext()"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></button>');
+  html.push('<button class="gp-seed-btn" onclick="seedRandom()"><svg viewBox="0 0 24 24"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/><line x1="4" y1="4" x2="9" y2="9"/></svg></button>');
   html.push('</div>');
-  html.push('</div>');
+  html.push('<div class="gp-divider"></div>');
 
   // Parameters
   var params = sketch.parameters || [];
   if (params.length > 0) {
+    html.push('<div class="gp-section-label">PARAMETERS</div>');
     html.push('<div class="gp-section">');
-    html.push('<div class="gp-section-title">Parameters</div>');
     for (var i = 0; i < params.length; i++) {
       var p = params[i];
       var val = state.params[p.key] !== undefined ? state.params[p.key] : p.default;
-      html.push('<div class="gp-param-row">');
-      html.push('<span class="gp-param-label">' + esc(p.label) + '</span>');
-      html.push('<input type="range" class="gp-param-slider" id="gp-param-' + p.key + '" min="' + p.min + '" max="' + p.max + '" step="' + p.step + '" value="' + val + '" oninput="paramChange(\'' + p.key + '\', this.value)">');
-      html.push('<span class="gp-param-value" id="gp-param-val-' + p.key + '">' + val + '</span>');
+      var pct = p.max !== p.min ? ((val - p.min) / (p.max - p.min)) * 100 : 0;
+      html.push('<div class="gp-param">');
+      html.push('<div class="gp-param-header">');
+      html.push('<span class="gp-param-name">' + esc(p.label) + '</span>');
+      html.push('<span class="gp-param-val" id="gp-pv-' + p.key + '">' + val + '</span>');
+      html.push('</div>');
+      html.push('<div class="gp-param-track">');
+      html.push('<div class="gp-param-fill" id="gp-pf-' + p.key + '" style="width:' + pct + '%"></div>');
+      html.push('<input type="range" class="gp-param-input" id="gp-pi-' + p.key + '" min="' + p.min + '" max="' + p.max + '" step="' + p.step + '" value="' + val + '" oninput="paramChange(\'' + p.key + '\',this.value)">');
+      html.push('</div>');
       html.push('</div>');
     }
     html.push('</div>');
+    html.push('<div class="gp-divider"></div>');
   }
 
   // Colors
   if (colorDefs.length > 0) {
+    html.push('<div class="gp-section-label">COLORS</div>');
     html.push('<div class="gp-section">');
-    html.push('<div class="gp-section-title">Colors</div>');
+    html.push('<div class="gp-colors">');
     for (var i = 0; i < colorDefs.length; i++) {
-      var c = colorDefs[i];
-      var cv = state.colorPalette[i] || c.default;
-      html.push('<div class="gp-color-row">');
-      html.push('<span class="gp-color-label">' + esc(c.label) + '</span>');
-      html.push('<input type="color" class="gp-color-input" id="gp-color-' + i + '" value="' + cv + '" onchange="colorChange(' + i + ', this.value)">');
-      html.push('</div>');
+      var cv = state.colorPalette[i] || colorDefs[i].default;
+      var isFirst = i === 0 ? ' gp-swatch-active' : '';
+      html.push('<div class="gp-swatch' + isFirst + '" id="gp-sw-' + i + '" style="background:' + cv + '"><input type="color" class="gp-swatch-input" id="gp-ci-' + i + '" value="' + cv + '" onchange="colorChange(' + i + ',this.value)"></div>');
     }
     html.push('</div>');
+    html.push('</div>');
+    html.push('<div class="gp-divider"></div>');
   }
 
   // Themes
   if (themes.length > 0) {
+    html.push('<div class="gp-section-label">THEMES</div>');
     html.push('<div class="gp-section">');
-    html.push('<div class="gp-section-title">Themes</div>');
-    html.push('<select class="gp-theme-select" id="gp-theme" onchange="themeChange(this.value)">');
-    html.push('<option value="">Custom</option>');
+    html.push('<div class="gp-theme-row">');
     for (var i = 0; i < themes.length; i++) {
-      html.push('<option value="' + i + '">' + esc(themes[i].name) + '</option>');
+      var theme = themes[i];
+      var active = i === 0 ? ' active' : '';
+      var dots = (theme.colors || []).slice(0, 3).map(function(c) {
+        return '<span class="gp-theme-dot" style="background:' + c + '"></span>';
+      }).join('');
+      html.push('<button class="gp-theme-btn' + active + '" onclick="themeChange(' + i + ')">' + dots + '</button>');
     }
-    html.push('</select>');
     html.push('</div>');
+    html.push('</div>');
+    html.push('<div class="gp-divider"></div>');
   }
 
   // Philosophy
   if (sketch.philosophy) {
+    html.push('<div class="gp-section-label">PHILOSOPHY</div>');
     html.push('<div class="gp-section">');
-    html.push('<div class="gp-section-title">Philosophy</div>');
     html.push('<div class="gp-philosophy">' + esc(sketch.philosophy) + '</div>');
     html.push('</div>');
+    html.push('<div class="gp-divider"></div>');
   }
 
   // File info
+  html.push('<div class="gp-section-label">FILE</div>');
   html.push('<div class="gp-section">');
-  html.push('<div class="gp-section-title">File</div>');
   html.push('<div class="gp-info-grid">');
-  html.push('<span class="gp-info-key">id:</span><span class="gp-info-val">' + esc(sketch.id) + '</span>');
-  html.push('<span class="gp-info-key">renderer:</span><span class="gp-info-val">' + esc(rendererType) + '</span>');
-  html.push('<span class="gp-info-key">canvas:</span><span class="gp-info-val">' + sketch.canvas.width + ' &times; ' + sketch.canvas.height + '</span>');
-  html.push('<span class="gp-info-key">format:</span><span class="gp-info-val">genart ' + (sketch.genart || '1.1') + '</span>');
+  html.push('<span class="gp-info-key">id:</span>');
+  html.push('<span class="gp-info-val">' + esc(sketch.id) + '</span>');
+  html.push('<span class="gp-info-key">renderer:</span>');
+  html.push('<span class="gp-info-val">' + esc(renderer) + '</span>');
+  html.push('<span class="gp-info-key">canvas:</span>');
+  html.push('<span class="gp-info-val">' + sketch.canvas.width + ' \u00d7 ' + sketch.canvas.height + '</span>');
   if (sketch.agent) {
-    html.push('<span class="gp-info-key">agent:</span><span class="gp-info-val">' + esc(sketch.agent) + '</span>');
+    html.push('<span class="gp-info-key">agent:</span>');
+    html.push('<span class="gp-info-val">' + esc(sketch.agent) + '</span>');
   }
   html.push('</div>');
-  html.push('<button class="gp-copy-btn" onclick="copyState()">Copy State JSON</button>');
+  html.push('</div>');
+  html.push('<div class="gp-divider"></div>');
+
+  // Actions
+  html.push('<div class="gp-section" style="display:flex;flex-direction:column;gap:8px;padding:12px 16px">');
+  html.push('<button class="gp-copy-btn" onclick="copyState()"><svg viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>Copy State JSON</button>');
+  html.push('<button class="gp-copy-btn" onclick="saveSnapshot()"><svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>Save Snapshot</button>');
+  html.push('<button class="gp-copy-btn" onclick="downloadScreenshot()"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Download Screenshot</button>');
   html.push('</div>');
 
   panel.innerHTML = html.join('\n');
@@ -557,7 +633,6 @@ function setupCanvas2D(area) {
   var dataCode = generateDataCode(sketch.data, sketch.components);
   var algo = sketch.algorithm;
 
-  // Create function scope with components, symbols, data, and algorithm
   var fnBody = componentCode + '\n' + symbolCode + '\n' + dataCode + '\n' + algo + '\n' +
     'var ctx = document.getElementById("canvas").getContext("2d");\n' +
     'ctx.setTransform(1, 0, 0, 1, 0, 0);\n' +
@@ -578,7 +653,6 @@ function setupCanvas2D(area) {
 }
 
 // --- p5 ---
-var p5Instance = null;
 function setupP5(area) {
   var container = document.createElement('div');
   container.id = 'canvas-container';
@@ -588,25 +662,15 @@ function setupP5(area) {
   var symbolCode = extractSymbols(sketch.symbols);
   var dataCode = generateDataCode(sketch.data, sketch.components);
 
-  // Load p5.js from CDN then initialize
   var script = document.createElement('script');
   script.src = 'https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.11.3/p5.min.js';
   script.onload = function() {
-    // Build the sketch function in scope with components
     var fnBody = componentCode + '\n' + symbolCode + '\n' + dataCode + '\n' + sketch.algorithm + '\n' +
       'return sketch;\n';
     var sketchFactory = new Function('state', fnBody);
 
     rerender = function() {
       syncState();
-      // p5 uppercase aliases
-      state.SEED = state.seed;
-      state.PARAMS = state.params;
-      state.COLORS = {};
-      for (var i = 0; i < colorDefs.length; i++) {
-        state.COLORS[colorDefs[i].key] = state.colorPalette[i] || '#000000';
-      }
-
       if (p5Instance) { p5Instance.remove(); p5Instance = null; }
       container.innerHTML = '';
       var sketchFn = sketchFactory(state);
@@ -656,7 +720,6 @@ function setupThree(area) {
   var dataCode = generateDataCode(sketch.data, sketch.components);
   var activeAnimId = null;
 
-  // Load Three.js from CDN as module
   var script = document.createElement('script');
   script.type = 'module';
   script.textContent = [
@@ -710,7 +773,6 @@ function setupGLSL(area) {
   var gl = canvas.getContext('webgl2', { preserveDrawingBuffer: true });
   if (!gl) { showError('WebGL2 not supported', 'Your browser does not support WebGL2.'); return; }
 
-  // Prepare shader source
   var glslComponents = '';
   if (sketch.components) {
     var keys = Object.keys(sketch.components);
@@ -759,7 +821,6 @@ function setupGLSL(area) {
     gl.useProgram(program);
     gl.bindVertexArray(vao);
 
-    // Built-in uniforms
     var loc;
     loc = gl.getUniformLocation(program, 'u_resolution');
     if (loc) gl.uniform2f(loc, w, h);
@@ -768,15 +829,13 @@ function setupGLSL(area) {
     loc = gl.getUniformLocation(program, 'u_seed');
     if (loc) gl.uniform1f(loc, state.seed);
 
-    // Param uniforms
     for (var i = 0; i < uniforms.params.length; i++) {
       var u = uniforms.params[i];
-      var key = u.substring(2); // strip u_
+      var key = u.substring(2);
       loc = gl.getUniformLocation(program, u);
       if (loc && state.params[key] !== undefined) gl.uniform1f(loc, state.params[key]);
     }
 
-    // Color uniforms
     for (var i = 0; i < uniforms.colors.length; i++) {
       var u = uniforms.colors[i];
       var idx = parseInt(u.replace('u_color', ''), 10) - 1;
@@ -793,7 +852,6 @@ function setupGLSL(area) {
 
     gl.drawArrays(gl.TRIANGLES, 0, 6);
 
-    // Continue animation if u_time is used
     if (gl.getUniformLocation(program, 'u_time')) {
       animId = requestAnimationFrame(renderFrame);
     }
@@ -812,42 +870,84 @@ function setupGLSL(area) {
 // Panel interaction handlers
 // ---------------------------------------------------------------------------
 function syncState() {
-  // Already mutated in place by handlers below
+  if (rendererType === 'p5') {
+    state.SEED = state.seed;
+    state.PARAMS = state.params;
+    state.COLORS = {};
+    for (var i = 0; i < colorDefs.length; i++) {
+      state.COLORS[colorDefs[i].key] = state.colorPalette[i] || '#000000';
+    }
+  }
 }
 
+function seedPrev() {
+  state.seed = Math.max(0, state.seed - 1);
+  document.getElementById('gp-seed-val').value = state.seed;
+  if (rerender) rerender();
+}
+function seedNext() {
+  state.seed = state.seed + 1;
+  document.getElementById('gp-seed-val').value = state.seed;
+  if (rerender) rerender();
+}
 function seedRandom() {
   state.seed = Math.floor(Math.random() * 100000);
-  document.getElementById('gp-seed-val').textContent = state.seed;
+  document.getElementById('gp-seed-val').value = state.seed;
+  if (rerender) rerender();
+}
+function seedSet(val) {
+  var s = parseInt(val, 10);
+  if (isNaN(s)) return;
+  state.seed = s;
   if (rerender) rerender();
 }
 
 function paramChange(key, val) {
   var v = parseFloat(val);
   state.params[key] = v;
-  document.getElementById('gp-param-' + key).value = v;
-  document.getElementById('gp-param-val-' + key).textContent = v;
+  if (state.PARAMS) state.PARAMS[key] = v;
+  var input = document.getElementById('gp-pi-' + key);
+  var pct = ((v - input.min) / (input.max - input.min)) * 100;
+  document.getElementById('gp-pf-' + key).style.width = pct + '%';
+  document.getElementById('gp-pv-' + key).textContent = v;
   if (rerender) rerender();
 }
 
 function colorChange(idx, val) {
   state.colorPalette[idx] = val;
+  document.getElementById('gp-sw-' + idx).style.background = val;
+  document.querySelectorAll('.gp-swatch').forEach(function(s) { s.classList.remove('gp-swatch-active'); });
+  document.getElementById('gp-sw-' + idx).classList.add('gp-swatch-active');
   if (state.COLORS && colorDefs[idx]) state.COLORS[colorDefs[idx].key] = val;
-  var themeEl = document.getElementById('gp-theme');
-  if (themeEl) themeEl.value = '';
   if (rerender) rerender();
 }
 
-function themeChange(val) {
-  if (val === '') return;
-  var theme = themes[parseInt(val, 10)];
+function themeChange(idx) {
+  var theme = themes[idx];
   if (!theme) return;
+  document.querySelectorAll('.gp-theme-btn').forEach(function(b) { b.classList.remove('active'); });
+  event.target.closest('.gp-theme-btn').classList.add('active');
   for (var i = 0; i < theme.colors.length; i++) {
     state.colorPalette[i] = theme.colors[i];
-    var el = document.getElementById('gp-color-' + i);
-    if (el) el.value = theme.colors[i];
+    var sw = document.getElementById('gp-sw-' + i);
+    if (sw) sw.style.background = theme.colors[i];
+    var ci = document.getElementById('gp-ci-' + i);
+    if (ci) ci.value = theme.colors[i];
     if (state.COLORS && colorDefs[i]) state.COLORS[colorDefs[i].key] = theme.colors[i];
   }
   if (rerender) rerender();
+}
+
+function togglePanel() {
+  var panel = document.getElementById('genart-panel');
+  var toggle = document.getElementById('gp-toggle');
+  if (panel.style.display === 'none') {
+    panel.style.display = 'flex';
+    toggle.style.display = 'none';
+  } else {
+    panel.style.display = 'none';
+    toggle.style.display = 'flex';
+  }
 }
 
 function copyState() {
@@ -862,6 +962,39 @@ function copyState() {
     navigator.clipboard.writeText(json).then(function() { showToast('State copied'); });
   } else {
     prompt('Copy state JSON:', json);
+  }
+}
+
+function saveSnapshot() {
+  var out = {
+    sketchId: sketch.id,
+    seed: state.seed,
+    params: Object.assign({}, state.params),
+    colors: state.colorPalette.slice(),
+    timestamp: new Date().toISOString()
+  };
+  try {
+    var key = 'genart-snapshots';
+    var list = JSON.parse(localStorage.getItem(key) || '[]');
+    list.push(out);
+    localStorage.setItem(key, JSON.stringify(list));
+    showToast('Snapshot saved');
+  } catch (e) {
+    showToast('Could not save snapshot');
+  }
+}
+
+function downloadScreenshot() {
+  var canvas = document.querySelector('#canvas-area canvas');
+  if (!canvas) { showToast('No canvas found'); return; }
+  try {
+    var link = document.createElement('a');
+    link.download = sketch.id + '_' + state.seed + '.png';
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+    showToast('Screenshot downloaded');
+  } catch (e) {
+    showToast('Could not capture canvas');
   }
 }
 
