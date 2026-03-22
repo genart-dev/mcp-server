@@ -1,6 +1,6 @@
 {
   "name": "@genart-dev/mcp-server",
-  "version": "0.4.40",
+  "version": "0.4.41",
   "description": "MCP server for genart.dev — tools, resources, and prompts for generative art",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -65,7 +65,7 @@
   },
   "dependencies": {
     "@genart-dev/components": "^0.1.4",
-    "@genart-dev/core": "^0.9.0",
+    "@genart-dev/core": "^0.10.0",
     "@genart-dev/plugin-animation": "^0.1.0",
     "@genart-dev/plugin-atmosphere": "^0.2.0",
     "@genart-dev/plugin-color-adjust": "^0.1.0",

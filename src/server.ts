@@ -110,7 +110,7 @@ import { registerResources } from "./resources/index.js";
 import { registerPrompts } from "./prompts/index.js";
 
 /** Wrap a tool handler to return MCP-formatted content (text JSON). */
-function jsonResult(data: Record<string, unknown>) {
+function jsonResult(data: object) {
   return {
     content: [{ type: "text" as const, text: JSON.stringify(data, null, 2) }],
   };

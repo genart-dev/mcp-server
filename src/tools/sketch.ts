@@ -24,7 +24,7 @@ import {
   type ThemeDef,
   type AlgorithmDataChannel,
 } from "@genart-dev/core";
-import { resolveLibraries, type LibraryDependency } from "./library-presets.js";
+import { resolveLibraries, type LibraryDependency } from "@genart-dev/core";
 import { EditorState } from "../state.js";
 
 // ---------------------------------------------------------------------------

@@ -6,7 +6,7 @@
 import {
   LIBRARY_PRESETS,
   listLibraryPresets,
-} from "./library-presets.js";
+} from "@genart-dev/core";
 
 // ---------------------------------------------------------------------------
 // list_libraries
@@ -31,7 +31,7 @@ const LIBRARY_DESCRIPTIONS: Record<string, string> = {
 export function listLibraries(): ListLibrariesResult {
   const names = listLibraryPresets();
   const libraries = names.map((name) => {
-    const preset = LIBRARY_PRESETS[name];
+    const preset = LIBRARY_PRESETS[name]!;
     return {
       name: preset.name,
       version: preset.version,
