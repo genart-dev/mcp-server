@@ -1340,16 +1340,22 @@ function registerCaptureTools(server: McpServer, state: EditorState): void {
       try {
         const result = await captureScreenshot(state, args);
         console.error(`[capture_screenshot] jpeg base64 length: ${result.previewJpegBase64.length}`);
-        return {
-          content: [
-            { type: "text" as const, text: JSON.stringify(result.metadata, null, 2) },
-            {
-              type: "image" as const,
-              data: result.previewJpegBase64,
-              mimeType: "image/jpeg" as const,
-            },
-          ],
-        };
+        const content: any[] = [
+          { type: "text" as const, text: JSON.stringify(result.metadata, null, 2) },
+          {
+            type: "image" as const,
+            data: result.previewJpegBase64,
+            mimeType: "image/jpeg" as const,
+          },
+        ];
+        // Add markdown image link for inline rendering in Claude Desktop
+        if (result.previewUrl) {
+          content.push({
+            type: "text" as const,
+            text: `![sketch preview](${result.previewUrl})`,
+          });
+        }
+        return { content };
       } catch (e) {
         console.error(`[capture_screenshot] error: ${e instanceof Error ? e.message : String(e)}`);
         return toolError(e instanceof Error ? e.message : String(e));
@@ -1399,6 +1405,12 @@ function registerCaptureTools(server: McpServer, state: EditorState): void {
             type: "text",
             text: JSON.stringify(item.metadata, null, 2),
           });
+          if (item.previewUrl) {
+            content.push({
+              type: "text",
+              text: `![sketch preview](${item.previewUrl})`,
+            });
+          }
         }
         return { content };
       } catch (e) {

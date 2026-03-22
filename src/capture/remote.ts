@@ -43,6 +43,7 @@ interface RemoteCaptureResult {
   mimeType: string;
   width: number;
   height: number;
+  previewUrl?: string;
 }
 
 interface RemoteMultiResult {
@@ -52,6 +53,7 @@ interface RemoteMultiResult {
   inlineJpeg: string;
   inlineWidth: number;
   inlineHeight: number;
+  previewUrl?: string;
 }
 
 export async function captureHtmlRemote(
@@ -95,5 +97,6 @@ export async function captureHtmlMultiRemote(
     inlineJpeg: new Uint8Array(Buffer.from(result.inlineJpeg, "base64")),
     inlineWidth: result.inlineWidth,
     inlineHeight: result.inlineHeight,
+    previewUrl: result.previewUrl,
   };
 }

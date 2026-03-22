@@ -1,6 +1,6 @@
 {
   "name": "@genart-dev/mcp-server",
-  "version": "0.4.37",
+  "version": "0.4.38",
   "description": "MCP server for genart.dev — tools, resources, and prompts for generative art",
   "type": "module",
   "main": "./dist/index.cjs",

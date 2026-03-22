@@ -57,6 +57,8 @@ export interface MultiCaptureResult {
   inlineJpeg: Uint8Array;
   inlineWidth: number;
   inlineHeight: number;
+  /** Public URL for the preview image (only set when using remote render service with PUBLIC_HOST). */
+  previewUrl?: string;
 }
 
 /**

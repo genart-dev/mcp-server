@@ -104,6 +104,8 @@ export interface CaptureScreenshotResult {
   metadata: Record<string, unknown>;
   /** Small JPEG as base64 string for the MCP image content block. */
   previewJpegBase64: string;
+  /** Public URL for the preview image (when using remote render service). */
+  previewUrl?: string;
 }
 
 export async function captureScreenshot(
@@ -159,7 +161,7 @@ export async function captureScreenshot(
 
     const previewJpegBase64 = Buffer.from(multi.inlineJpeg).toString("base64");
 
-    return { metadata, previewJpegBase64 };
+    return { metadata, previewJpegBase64, previewUrl: multi.previewUrl };
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     throw new Error(`Renderer error for '${sketchId}': ${msg}`);
@@ -203,6 +205,10 @@ async function buildScreenshotMetadata(
   // Remote mode: skip preview file — the inline JPEG image block is sufficient
   // for AI analysis, and shuttling a full PNG as base64 text wastes tokens.
 
+  if (multi.previewUrl) {
+    metadata.previewUrl = multi.previewUrl;
+  }
+
   return metadata;
 }
 
@@ -222,6 +228,7 @@ export interface CaptureBatchInput {
 export interface BatchItemResult {
   metadata: Record<string, unknown>;
   inlineJpegBase64: string;
+  previewUrl?: string;
 }
 
 export interface CaptureBatchResult {
@@ -281,6 +288,7 @@ export async function captureBatch(
       items.push({
         metadata: itemMetadata,
         inlineJpegBase64: Buffer.from(multi.inlineJpeg).toString("base64"),
+        previewUrl: multi.previewUrl,
       });
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
