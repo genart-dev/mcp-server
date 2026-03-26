@@ -362,7 +362,13 @@ function loadSketch(data) {
     var zone = document.getElementById('drop-zone');
     if (zone) zone.style.display = 'none';
 
-    buildPanel();
+    // Skip panel when embedded in an iframe (preview cards, srcdoc)
+    var inIframe = (window.self !== window.top);
+    if (!inIframe) {
+      buildPanel();
+    } else {
+      document.getElementById('gp-toggle').style.display = 'none';
+    }
     setupRenderer();
   } catch (e) {
     showError('Failed to parse sketch', e.message);
