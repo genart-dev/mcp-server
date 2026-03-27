@@ -1,6 +1,7 @@
 /**
  * @genart/mcp-server library API.
- * Used by @genart/mcp-host to create per-session MCP server instances.
+ * Used by @genart/mcp-host and @genart/agent-service to create per-session
+ * MCP server instances and generate standalone HTML previews.
  */
 
 export { createServer, type CreateServerOptions } from "./server.js";
@@ -11,3 +12,4 @@ export {
   type EditorMutationEvent,
   type EditorStateSnapshot,
 } from "./state.js";
+export { generateViewerHTML } from "./tools/preview.js";
