@@ -3,3 +3,8 @@ dist/
 *.tsbuildinfo
 .npmrc
 *.DS_Store
+
+# Wrong package manager lockfiles (this is a pnpm project)
+.yarn/
+yarn.lock
+package-lock.json
