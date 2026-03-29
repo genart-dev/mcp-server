@@ -67,7 +67,7 @@
     "@genart-dev/components": "^0.1.4",
     "@genart-dev/core": "^0.10.0",
     "@genart-dev/plugin-animation": "^0.1.0",
-    "@genart-dev/plugin-architecture": "^0.1.1",
+    "@genart-dev/plugin-architecture": "^0.2.0",
     "@genart-dev/plugin-atmosphere": "^0.2.0",
     "@genart-dev/plugin-color-adjust": "^0.1.0",
     "@genart-dev/plugin-compositing": "^0.1.0",
